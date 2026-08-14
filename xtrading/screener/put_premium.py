@@ -1,8 +1,12 @@
 """Put-premium screener on top of ``OptionScreener``.
 
-Stage 1 is a single Finviz screener export. Stage 2 is option-chain
-exports for the top 3 names only, and only for Friday expiries in 2–9 DTE.
-The call plan and ETA are printed before any network call.
+Stage 1 is a single Finviz screener export, then /export/quote history
+for the top 3 names (real 20-day RV). Stage 2 is stock-page options JSON
+for listed expiries in 2–9 DTE (weeklies included). CSV /export/options
+is the fallback when the provider has no JSON method.
+
+The 60s Finviz cap applies to /export/* only. Call plan and ETA print
+before those export calls.
 """
 from __future__ import annotations
 
@@ -147,11 +151,11 @@ def format_plan(plan: FetchPlan) -> str:
     lines = ["Call plan", "Stage 1: 1 screener export for the full universe"]
     stage2 = [j for j in plan.jobs if j.ticker != "SCREENER"]
     if stage2:
-        lines.append("Stage 2: chain exports (top 3 × 2–9 DTE Fridays)")
+        lines.append("Stage 2: options JSON (listed 2–9 DTE, including weeklies)")
         for job in stage2:
             lines.append(f"  - {job.ticker} {job.expiry.isoformat()}")
     else:
-        lines.append("Stage 2: up to 3 tickers × Friday expiries in 2–9 DTE")
+        lines.append("Stage 2: up to 3 tickers × listed expiries in 2–9 DTE")
     minutes = plan.eta.total_seconds() / 60.0
     lines.append(
         f"Network calls: {plan.n_network_calls}  "
@@ -230,10 +234,9 @@ def format_table(df: pd.DataFrame) -> str:
     a = ASSUMPTIONS
     header = (
         f"Assumptions: rate r={a['r']}. "
-        f"Finviz screener has no IV and no 20-day prices. "
-        f"Stage-1 rank uses Volatility (Month) = avg daily high/low range, annualized ×√{a['rv_annualization']}. "
-        f"Option IV comes only from the chain export. "
-        f"VRP = chain IV minus that Finviz month-vol proxy (not 20-day close-to-close RV). "
+        f"20-day RV is close-to-close from /export/quote when available; "
+        f"otherwise Finviz Volatility (Month) ×√{a['rv_annualization']}. "
+        f"Option IV comes from the stock options JSON (not the screener). "
         f"RoC annualized on a {a['annualization_days']}-day year. "
         f"Cash-secured put capital = strike × {a['contract_multiplier']}. "
         f"Never rank by raw premium. "
@@ -250,7 +253,7 @@ def format_table(df: pd.DataFrame) -> str:
         "mid": df["mid"].map(lambda x: f"{x:.2f}"),
         "delta": df["delta"].map(lambda x: f"{x:.3f}"),
         "IV": df["iv"].map(lambda x: f"{x:.3f}"),
-        "RV (ann.)": df["rv_20d"].map(lambda x: f"{x:.3f}"),
+        "20d RV": df["rv_20d"].map(lambda x: f"{x:.3f}"),
         "VRP": df["vrp"].map(lambda x: f"{x:.3f}"),
         "annualized RoC": df["annualized_roc"].map(lambda x: f"{x:.3f}"),
         "spread %": (df["spread_pct"] * 100).map(lambda x: f"{x:.1f}"),
@@ -308,15 +311,16 @@ class PutPremiumScreener:
         expiries = expiries_in_window(
             today, ASSUMPTIONS["min_dte"], ASSUMPTIONS["max_dte"]
         )
-        n_stage2_slots = top_n * max(len(expiries), 1)
+        n_exports = 1 + top_n  # screener + /export/quote per top name
         upper = FetchPlan(
-            n_network_calls=1 + n_stage2_slots,
+            n_network_calls=n_exports,
             n_cache_hits=0,
-            eta=timedelta(seconds=(1 + n_stage2_slots - 1) * 60),
+            eta=timedelta(seconds=max(n_exports - 1, 0) * 60),
             jobs=[FetchJob("SCREENER", date.min)]
             + [FetchJob(f"TOP{i}", expiries[0] if expiries else today) for i in range(top_n)],
         )
         print(format_plan(upper))
+        print("ETA covers /export/screener + /export/quote only. Options JSON is unthrottled.")
         print()
 
         raw = self.provider.fetch_screener(
@@ -338,21 +342,45 @@ class PutPremiumScreener:
             if pd.notna(r.Price)
         }
 
-        jobs = [FetchJob(t, e) for t in tickers for e in expiries]
-        plan = self.provider.dry_run(jobs) if jobs else FetchPlan(0, 0, timedelta(0), [])
-        # dry_run counts only chain jobs; add the screener call already spent
+        history_map: dict[str, pd.Series] = dict(history or {})
+        fetch_hist = getattr(self.provider, "fetch_history", None)
+        listed_fn = getattr(self.provider, "list_expiries", None)
+        jobs: list[FetchJob] = []
+        for t in tickers:
+            if listed_fn is not None:
+                listed = listed_fn(t)
+                exps = [
+                    d for d in listed
+                    if ASSUMPTIONS["min_dte"] <= (d - today).days <= ASSUMPTIONS["max_dte"]
+                ]
+            else:
+                exps = expiries
+            jobs.extend(FetchJob(t, e) for e in exps)
+
+        try:
+            plan = self.provider.dry_run(jobs, kind="options_json") if jobs else FetchPlan(0, 0, timedelta(0), [])
+        except TypeError:
+            plan = self.provider.dry_run(jobs) if jobs else FetchPlan(0, 0, timedelta(0), [])
+        n_hist = 0 if fetch_hist is None else sum(1 for t in tickers if t not in history_map)
         print(format_plan(FetchPlan(
-            n_network_calls=plan.n_network_calls,
+            n_network_calls=plan.n_network_calls + n_hist,
             n_cache_hits=plan.n_cache_hits,
-            eta=plan.eta,
+            eta=timedelta(seconds=max(n_hist, 0) * 60) if n_hist else timedelta(0),
             jobs=jobs,
         )))
+        print(f"Also {n_hist} /export/quote history pulls (20d RV) for the top names.")
         print()
 
+        if fetch_hist is not None:
+            for t in tickers:
+                if t not in history_map:
+                    history_map[t] = fetch_hist(t)
+
+        chain_fn = getattr(self.provider, "fetch_options_json", None) or self.provider.fetch_chain
         candidates = []
         for job in jobs:
             try:
-                chain = self.provider.fetch_chain(
+                chain = chain_fn(
                     job.ticker,
                     job.expiry,
                     spot=spots.get(job.ticker),
@@ -361,7 +389,7 @@ class PutPremiumScreener:
                     enforce_stale=False,
                 )
             except TypeError:
-                chain = self.provider.fetch_chain(
+                chain = chain_fn(
                     job.ticker,
                     job.expiry,
                     spot=spots.get(job.ticker),
@@ -387,13 +415,12 @@ class PutPremiumScreener:
             if screened.empty:
                 continue
             merged = screened.merge(frame, on=["strike", "expiry_days", "iv"], how="inner")
-            if history and job.ticker in history:
+            rv = rv_from_screener.get(job.ticker)
+            if job.ticker in history_map:
                 try:
-                    rv = realized_vol(history[job.ticker], window=ASSUMPTIONS["rv_window"])
+                    rv = realized_vol(history_map[job.ticker], window=ASSUMPTIONS["rv_window"])
                 except ValueError:
-                    rv = rv_from_screener.get(job.ticker)
-            else:
-                rv = rv_from_screener.get(job.ticker)
+                    pass
             if rv is None:
                 continue
             for _, row in merged.iterrows():

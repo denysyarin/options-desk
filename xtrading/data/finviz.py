@@ -1,15 +1,18 @@
-"""Finviz Elite export adapter.
+"""Finviz Elite adapter.
 
 URL shapes (token never hardcoded, never logged):
 
-  options  https://elite.finviz.com/export/options?t={ticker}&ty=oc&e={YYYY-MM-DD}&auth=...
-  screener https://elite.finviz.com/export/screener?v=111&f={filters}&auth=...
+  screener      /export/screener?v=...&f=...&c=...
+  quote history /export/quote?t={ticker}                 (date,lastClose)
+  options CSV   /export/options?t=...&ty=oc&e=YYYY-MM-DD (often empty Bid/IV)
+  options JSON  /stock?t=...&ty=oc&e=YYYY-MM-DD          (#route-init-data)
 
-One export call per 60 seconds, hard-enforced. ``options.py`` is not imported
-for HTTP — only for Greeks on already-parsed quotes.
+The 60s cap applies to /export/* only, not the stock-page JSON.
+``options.py`` is not imported for HTTP — only for Greeks on parsed quotes.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import time
@@ -33,6 +36,9 @@ _OCC = re.compile(r"^([A-Z]+)(\d{6})([CP])(\d{8})$")
 _LAST_TRADE_FMT = "%m/%d/%Y %I:%M:%S %p"
 _OPTIONS_BASE = "https://elite.finviz.com/export/options"
 _SCREENER_BASE = "https://elite.finviz.com/export/screener"
+_QUOTE_EXPORT = "https://elite.finviz.com/export/quote"
+_STOCK_PAGE = "https://elite.finviz.com/stock"
+_EXPORT_KINDS = {"options", "screener", "quote"}
 _GREEK_COLS = ("delta", "gamma", "theta", "vega", "rho")
 
 
@@ -56,7 +62,26 @@ def parse_last_trade(value: str | None) -> Optional[datetime]:
     text = str(value).strip()
     if not text or text.lower() == "nan":
         return None
+    if "T" in text:
+        dt = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=ET)
+        return dt.astimezone(ET)
     return datetime.strptime(text, _LAST_TRADE_FMT).replace(tzinfo=ET)
+
+
+def parse_options_payload(text: str) -> dict:
+    blob = text.strip()
+    if blob.startswith("{"):
+        return json.loads(blob)
+    m = re.search(
+        r'<script id="route-init-data" type="application/json">(.*?)</script>',
+        text,
+        re.S,
+    )
+    if not m:
+        raise ValueError("no route-init-data options JSON on page")
+    return json.loads(m.group(1))
 
 
 def _to_float(value) -> Optional[float]:
@@ -134,17 +159,61 @@ class FinvizProvider(ChainProvider):
         )
         return pd.read_csv(StringIO(body))
 
-    def dry_run(self, jobs: list[FetchJob]) -> FetchPlan:
+    def fetch_history(self, ticker: str) -> pd.Series:
+        """Daily lastClose from /export/quote — years of history, not 20 rows from the screener."""
+        ticker = ticker.upper()
+        body = self._load_or_fetch("quote", ticker, None, extra={"t": ticker})
+        df = pd.read_csv(StringIO(body))
+        if "date" not in df.columns or "lastClose" not in df.columns:
+            raise ValueError("quote export missing date/lastClose")
+        df["date"] = pd.to_datetime(df["date"], format="%m/%d/%Y", errors="coerce")
+        df = df.dropna(subset=["date", "lastClose"]).sort_values("date")
+        return pd.Series(df["lastClose"].astype(float).values, index=df["date"])
+
+    def fetch_options_json(
+        self,
+        ticker: str,
+        expiry: date,
+        *,
+        spot: Optional[float] = None,
+        max_age: timedelta = timedelta(minutes=5),
+        r: float = 0.05,
+        enforce_stale: bool = True,
+    ) -> OptionChain:
+        """Chain + IV from the stock options page JSON (not the empty-bid CSV export)."""
+        ticker = ticker.upper()
+        body = self._load_or_fetch(
+            "options_json",
+            ticker,
+            expiry,
+            extra={"t": ticker, "e": expiry.isoformat()},
+        )
+        payload = parse_options_payload(body)
+        return self._chain_from_json(
+            payload, ticker, expiry, spot=spot, max_age=max_age, r=r, enforce_stale=enforce_stale,
+        )
+
+    def list_expiries(self, ticker: str) -> list[date]:
+        ticker = ticker.upper()
+        body = self._load_or_fetch(
+            "options_json",
+            ticker,
+            None,
+            extra={"t": ticker},
+        )
+        payload = parse_options_payload(body)
+        return [date.fromisoformat(x) for x in payload.get("expiries") or []]
+
+    def dry_run(self, jobs: list[FetchJob], *, kind: str = "options") -> FetchPlan:
         n_hits = 0
         n_net = 0
         for job in jobs:
-            if self._cache_path("options", job.ticker.upper(), job.expiry).exists() and self._cache_fresh(
-                self._cache_path("options", job.ticker.upper(), job.expiry)
-            ):
+            path = self._cache_path(kind, job.ticker.upper(), job.expiry)
+            if self._cache_fresh(path):
                 n_hits += 1
             else:
                 n_net += 1
-        wait_steps = max(n_net - 1, 0)
+        wait_steps = max(n_net - 1, 0) if kind in _EXPORT_KINDS else 0
         return FetchPlan(
             n_network_calls=n_net,
             n_cache_hits=n_hits,
@@ -170,6 +239,16 @@ class FinvizProvider(ChainProvider):
         text = re.sub(r"\?auth=REDACTED(&)?", lambda m: "?" if m.group(1) else "", text)
         text = re.sub(r"&auth=REDACTED", "", text)
         return text
+
+    def _quote_url(self, ticker: str) -> str:
+        q = urlencode({"t": ticker, "auth": self._token_or_raise()})
+        return f"{_QUOTE_EXPORT}?{q}"
+
+    def _stock_options_url(self, ticker: str, expiry: Optional[date] = None) -> str:
+        q = {"t": ticker, "ty": "oc", "auth": self._token_or_raise()}
+        if expiry is not None:
+            q["e"] = expiry.isoformat()
+        return f"{_STOCK_PAGE}?{urlencode(q)}"
 
     def _options_url(self, ticker: str, expiry: date) -> str:
         q = urlencode({"t": ticker, "ty": "oc", "e": expiry.isoformat(), "auth": self._token_or_raise()})
@@ -223,16 +302,23 @@ class FinvizProvider(ChainProvider):
         path = self._cache_path(kind, key, expiry)
         if self._cache_fresh(path):
             return path.read_text()
+        if kind in _EXPORT_KINDS:
+            self._throttle()
         if kind == "options":
             url = self._options_url(extra["t"], date.fromisoformat(extra["e"]))
+        elif kind == "quote":
+            url = self._quote_url(extra["t"])
+        elif kind == "options_json":
+            exp = date.fromisoformat(extra["e"]) if extra.get("e") else None
+            url = self._stock_options_url(extra["t"], exp)
         else:
             url = self._screener_url(extra.get("f") or "", extra["v"], extra.get("c"))
-        self._throttle()
         try:
             body = self._fetcher(url)
         except Exception as exc:
             raise type(exc)(self._redact(str(exc))) from None
-        self._last_network_at = self._now()
+        if kind in _EXPORT_KINDS:
+            self._last_network_at = self._now()
         path.write_text(body)
         self._stamp_path(path).write_text(self._now().isoformat())
         return body
@@ -240,6 +326,96 @@ class FinvizProvider(ChainProvider):
     # ------------------------------------------------------------------ #
     # Parse
     # ------------------------------------------------------------------ #
+
+    def _chain_from_json(
+        self,
+        payload: dict,
+        ticker: str,
+        expiry: date,
+        *,
+        spot: Optional[float],
+        max_age: timedelta,
+        r: float,
+        enforce_stale: bool,
+    ) -> OptionChain:
+        now = self._now()
+        resolved_spot = float(spot) if spot is not None else _to_float(payload.get("lastClose"))
+        if resolved_spot is None:
+            raise ValueError("options JSON missing lastClose and no explicit spot")
+        T = max((expiry - now.astimezone(ET).date()).days, 0) / 365.0
+        quotes: list[OptionQuote] = []
+        n_empty_bid = 0
+        n_zero_vol = 0
+        for raw in payload.get("options") or []:
+            bid = _to_float(raw.get("bidPrice"))
+            if bid is not None and bid <= 0:
+                bid = None
+            volume = _to_int(raw.get("lastVolume") if raw.get("lastVolume") is not None else raw.get("averageVolume"))
+            if bid is None:
+                n_empty_bid += 1
+            if volume == 0:
+                n_zero_vol += 1
+            if bid is None or volume == 0:
+                continue
+            ask = _to_float(raw.get("askPrice"))
+            mid = (bid + ask) / 2.0 if ask is not None and ask > 0 else None
+            iv = _to_float(raw.get("iv"))
+            last_trade = parse_last_trade(raw.get("lastTime"))
+            option_type = str(raw.get("type") or "").lower()
+            strike = float(raw["strike"])
+            quotes.append(OptionQuote(
+                contract=f"{ticker}{expiry.strftime('%y%m%d')}{'P' if option_type == 'put' else 'C'}{int(round(strike * 1000)):08d}",
+                ticker=str(raw.get("ticker") or ticker),
+                expiry=expiry,
+                option_type=option_type,
+                strike=strike,
+                last_trade=last_trade,
+                quote_age=(now - last_trade) if last_trade is not None else None,
+                last_close=_to_float(raw.get("lastClose")),
+                bid=bid,
+                ask=ask,
+                mid=mid,
+                volume=volume,
+                open_interest=_to_int(raw.get("openInterest")),
+                iv=iv,
+                iv_unreliable=iv is not None and iv > 3.0,
+                finviz_greeks={
+                    "delta": _to_float(raw.get("delta")),
+                    "gamma": _to_float(raw.get("gamma")),
+                    "theta": _to_float(raw.get("theta")),
+                    "vega": _to_float(raw.get("vega")),
+                    "rho": _to_float(raw.get("rho")),
+                },
+                ours_greeks=None,
+                greeks_delta=None,
+            ))
+        if not quotes:
+            raise ValueError("no option rows remaining after hygiene")
+        if T > 0:
+            for q in quotes:
+                if q.iv is None:
+                    continue
+                ours = GreeksCalculator.all_greeks(resolved_spot, q.strike, T, r, q.iv, q.option_type)
+                q.ours_greeks = ours
+                q.greeks_delta = {
+                    k: ours[k] - q.finviz_greeks[k]
+                    for k in _GREEK_COLS
+                    if q.finviz_greeks.get(k) is not None
+                }
+        if enforce_stale:
+            stale = [q for q in quotes if q.quote_age is None or q.quote_age > max_age]
+            if stale:
+                age = max((q.quote_age or max_age) for q in stale)
+                raise ValueError(f"quotes older than max_age={max_age}: oldest age {age}")
+        return OptionChain(
+            ticker=ticker,
+            expiry=expiry,
+            spot=resolved_spot,
+            spot_method="explicit" if spot is not None else "page_lastClose",
+            fetched_at=now,
+            quotes=quotes,
+            dropped={"empty_bid": n_empty_bid, "zero_volume": n_zero_vol},
+        )
 
     def _parse_chain(
         self,

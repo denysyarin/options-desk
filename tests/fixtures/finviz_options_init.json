@@ -1,0 +1,22 @@
+{
+  "view": "chain_date",
+  "expiries": ["2026-08-14", "2026-08-21", "2026-08-28", "2026-09-18"],
+  "currentExpiry": "2026-08-21",
+  "ticker": "MSFT",
+  "lastClose": 497.97,
+  "lastTime": "2026-08-14T09:32:00",
+  "options": [
+    {
+      "ticker": "MSFT", "exDate": 260821, "strike": 495, "type": "put",
+      "openInterest": 1319, "averageVolume": 200, "bidPrice": 6.7, "askPrice": 6.9,
+      "lastClose": 6.8, "lastVolume": 210, "lastTime": "2026-08-14T09:32:01",
+      "iv": 0.22, "delta": -0.45, "gamma": 0.02, "theta": -0.15, "vega": 0.35, "rho": -0.12
+    },
+    {
+      "ticker": "MSFT", "exDate": 260821, "strike": 495, "type": "call",
+      "openInterest": 4057, "averageVolume": 180, "bidPrice": 7.8, "askPrice": 8.0,
+      "lastClose": 7.89, "lastVolume": 190, "lastTime": "2026-08-14T09:32:05",
+      "iv": 0.21, "delta": 0.52, "gamma": 0.02, "theta": -0.16, "vega": 0.36, "rho": 0.08
+    }
+  ]
+}

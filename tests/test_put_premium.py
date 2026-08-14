@@ -222,12 +222,12 @@ def test_table_states_assumptions_and_required_columns():
     }]))
     text = format_table(df)
     for col in ("ticker", "strike", "DTE", "bid", "ask", "mid", "delta", "IV",
-                "RV", "VRP", "annualized RoC", "spread", "capital",
+                "20d RV", "VRP", "annualized RoC", "spread", "capital",
                 "breakeven", "timestamp"):
         assert col.lower().replace(" ", "") in text.lower().replace(" ", "").replace("%", "")
     assert "r=" in text or "rate" in text.lower()
-    assert "Volatility (Month)" in text
-    assert "no IV" in text
+    assert "export/quote" in text
+    assert "Never rank by raw premium" in text
 
 
 class FakeProvider:
@@ -244,6 +244,10 @@ class FakeProvider:
     def fetch_screener(self, filters: str, **kwargs):
         self.calls.append(f"screener:{filters}")
         return self.screener_df.copy()
+
+    def fetch_history(self, ticker):
+        self.calls.append(f"history:{ticker}")
+        return _closes()
 
     def fetch_chain(self, ticker, expiry, **kwargs):
         self.calls.append(f"chain:{ticker}:{expiry}")
@@ -297,4 +301,5 @@ def test_run_prints_plan_before_any_fetch(capsys, tmp_path):
     assert len(chain_calls) == 3
     chain_tickers = {c.split(":")[1] for c in chain_calls}
     assert chain_tickers == {"BBB", "CCC", "DDD"}
-    assert "AAA" not in chain_tickers and "EEE" not in chain_tickers
+    hist_calls = [c for c in provider.calls if c.startswith("history:")]
+    assert set(hist_calls) == {"history:BBB", "history:CCC", "history:DDD"}

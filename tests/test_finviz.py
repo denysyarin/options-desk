@@ -89,6 +89,11 @@ def test_parse_last_trade_us_eastern():
     assert ts == datetime(2026, 8, 13, 15, 3, 37, tzinfo=ET)
 
 
+def test_parse_last_trade_iso():
+    ts = parse_last_trade("2026-08-14T09:32:01")
+    assert ts == datetime(2026, 8, 14, 9, 32, 1, tzinfo=ET)
+
+
 # --------------------------------------------------------------------------- #
 # Hygiene, spot, Greeks, staleness
 # --------------------------------------------------------------------------- #
@@ -245,3 +250,104 @@ def test_screener_custom_columns_go_on_the_url(tmp_path):
     assert "v=152" in url
     assert "c=1%2C65%2C50%2C51%2C63%2C67%2C68" in url or "c=1,65,50,51,63,67,68" in url
     assert "auth=test-token" in url
+
+
+QUOTE_CSV = (FIXTURES / "finviz_quote_sample.csv").read_text()
+OPTIONS_JSON = (FIXTURES / "finviz_options_init.json").read_text()
+
+
+def test_fetch_history_uses_quote_export_and_returns_closes(tmp_path):
+    p = _provider(tmp_path, body=QUOTE_CSV)
+    closes = p.fetch_history("MSFT")
+    assert "export/quote" in p._calls[0]
+    assert "t=MSFT" in p._calls[0]
+    assert len(closes) >= 21
+    assert closes.iloc[-1] == pytest.approx(110.50)
+
+
+def test_parse_options_json_has_iv_bids_and_listed_expiries():
+    from xtrading.data.finviz import parse_options_payload
+    payload = parse_options_payload(OPTIONS_JSON)
+    assert payload["currentExpiry"] == "2026-08-21"
+    assert "2026-08-21" in payload["expiries"]
+    put = next(o for o in payload["options"] if o["type"] == "put")
+    assert put["iv"] == pytest.approx(0.22)
+    assert put["bidPrice"] == pytest.approx(6.7)
+
+
+def test_fetch_chain_json_uses_stock_page_not_empty_csv_export(tmp_path):
+    html = f'<script id="route-init-data" type="application/json">{OPTIONS_JSON}</script>'
+    p = _provider(tmp_path, body=html)
+    chain = p.fetch_options_json("MSFT", EXPIRY, max_age=timedelta(hours=24), r=0.0)
+    url = p._calls[0]
+    assert "/stock?" in url
+    assert "export/options" not in url
+    assert "ty=oc" in url
+    assert "e=2026-08-21" in url
+    put = next(q for q in chain.quotes if q.option_type == "put")
+    assert put.iv == pytest.approx(0.22)
+    assert put.bid == pytest.approx(6.7)
+    assert chain.spot == pytest.approx(497.97)
+
+
+def test_list_expiries_hits_stock_page_without_expiry_param(tmp_path):
+    html = f'<script id="route-init-data" type="application/json">{OPTIONS_JSON}</script>'
+    p = _provider(tmp_path, body=html)
+    dates = p.list_expiries("MSFT")
+    assert date(2026, 8, 21) in dates
+    assert date(2026, 8, 28) in dates
+    assert "e=" not in p._calls[0]
+
+
+def test_options_json_does_not_consume_export_throttle(tmp_path):
+    clock = FakeClock(NOW)
+    calls: list[str] = []
+
+    def fetcher(url: str) -> str:
+        calls.append(url)
+        if "export/quote" in url:
+            return QUOTE_CSV
+        return f'<script id="route-init-data" type="application/json">{OPTIONS_JSON}</script>'
+
+    p = FinvizProvider(
+        token="test-token",
+        cache_dir=tmp_path / "cache",
+        fetcher=fetcher,
+        sleep=clock.sleep,
+        now=clock.now,
+    )
+    p.fetch_history("MSFT")
+    p.fetch_options_json("MSFT", EXPIRY, max_age=timedelta(hours=24), r=0.0)
+    assert clock.sleeps == []
+    assert any("export/quote" in u for u in calls)
+    assert any("/stock?" in u for u in calls)
+
+
+def test_quote_export_waits_after_screener_export(tmp_path):
+    clock = FakeClock(NOW)
+
+    def fetcher(url: str) -> str:
+        if "export/quote" in url:
+            return QUOTE_CSV
+        return SCREENER_CSV
+
+    p = FinvizProvider(
+        token="test-token",
+        cache_dir=tmp_path / "cache",
+        fetcher=fetcher,
+        sleep=clock.sleep,
+        now=clock.now,
+    )
+    p.fetch_screener("sec_technology")
+    p.fetch_history("MSFT")
+    assert clock.sleeps == [pytest.approx(60.0)]
+
+
+def test_dry_run_json_kind_has_no_export_eta(tmp_path):
+    p = _provider(tmp_path)
+    plan = p.dry_run(
+        [FetchJob("MSFT", EXPIRY), FetchJob("AAPL", date(2026, 9, 18))],
+        kind="options_json",
+    )
+    assert plan.n_network_calls == 2
+    assert plan.eta == timedelta(0)
