@@ -1,4 +1,4 @@
-"""python -m xtrading.screener overnight|premarket"""
+"""python -m xtrading.screener overnight|premarket|rth"""
 from __future__ import annotations
 
 import argparse
@@ -13,13 +13,14 @@ from xtrading.screener.jobs import (
     SessionSkip,
     run_overnight,
     run_premarket,
+    run_rth,
 )
 from xtrading.session import ET
 
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="python -m xtrading.screener")
-    p.add_argument("job", choices=["overnight", "premarket"])
+    p.add_argument("job", choices=["overnight", "premarket", "rth"])
     p.add_argument("--force", action="store_true")
     p.add_argument(
         "--snapshot-root",
@@ -34,23 +35,19 @@ def main(argv: list[str] | None = None) -> int:
     cache = Path(os.environ.get("FINVIZ_CACHE", ".cache/finviz"))
     provider = FinvizProvider(token=token, cache_dir=cache)
     now = lambda: datetime.now(tz=ET)
+    runners = {
+        "overnight": run_overnight,
+        "premarket": run_premarket,
+        "rth": run_rth,
+    }
     try:
-        if args.job == "overnight":
-            path = run_overnight(
-                provider,
-                filters=filters,
-                snapshot_root=args.snapshot_root,
-                now=now,
-                force=args.force,
-            )
-        else:
-            path = run_premarket(
-                provider,
-                filters=filters,
-                snapshot_root=args.snapshot_root,
-                now=now,
-                force=args.force,
-            )
+        path = runners[args.job](
+            provider,
+            filters=filters,
+            snapshot_root=args.snapshot_root,
+            now=now,
+            force=args.force,
+        )
     except SessionSkip as exc:
         print(exc)
         return 0

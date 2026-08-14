@@ -6,7 +6,7 @@ from typing import Literal
 from zoneinfo import ZoneInfo
 
 ET = ZoneInfo("America/New_York")
-JobName = Literal["overnight", "premarket", "skip"]
+JobName = Literal["overnight", "premarket", "rth", "skip"]
 
 
 def _as_et(now: datetime) -> datetime:
@@ -25,6 +25,8 @@ def job_for(now: datetime) -> JobName:
         return "skip"
     if local.hour == 9 and local.minute == 15:
         return "premarket"
+    if local.hour == 9 and local.minute == 30:
+        return "rth"
     if local.hour == 16 and local.minute == 30:
         return "overnight"
     return "skip"

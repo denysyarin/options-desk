@@ -11,13 +11,20 @@ def format_brief(
 ) -> str:
     fetched = meta.get("fetched_at", "")
     rv_source = meta.get("rv_source", "unknown")
+    job = meta.get("job", "rth")
+    if job == "premarket":
+        tape = "This is the 9:15 prelayer. Gap is live until 9:30 ET. Not a trade list."
+    elif job == "rth":
+        tape = "Cash is open. Chains are live. Gap is frozen from the 9:15 prelayer."
+    else:
+        tape = "Gap freezes at the 9:30 ET cash open; treat this snapshot as stale after that."
     lines = [
         f"# Options desk brief",
         f"",
         f"As of {fetched} (America/New_York).",
         f"RV source: `{rv_source}`.",
         f"",
-        f"Not financial advice. Gap freezes at the 9:30 ET cash open; treat this snapshot as stale after that.",
+        f"Not financial advice. {tape}",
         f"Rank is VRP, then annualized RoC, then spread — never raw premium.",
         f"",
     ]

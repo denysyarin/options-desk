@@ -42,19 +42,32 @@ def test_load_latest_rv_walks_back_weekend(tmp_path):
 def test_premarket_round_trip_and_freshness(tmp_path):
     store = SnapshotStore(tmp_path)
     snap = pd.DataFrame({"Ticker": ["BBB"], "Gap": ["2.10%"]})
-    ranked = pd.DataFrame({"ticker": ["BBB"], "vrp": [0.1]})
     meta = {"fetched_at": NOW.isoformat(), "job": "premarket"}
     store.write_premarket(
         date(2026, 8, 14),
         snapshot=snap,
-        ranked=ranked,
-        brief="hello",
         meta=meta,
     )
     day = tmp_path / "2026-08-14" / "premarket"
-    assert (day / "brief.md").read_text() == "hello"
-    assert (day / "ranked.csv").exists()
+    assert not (day / "brief.md").exists()
+    assert not (day / "ranked.csv").exists()
+    loaded_snap = store.load_premarket_snapshot(date(2026, 8, 14))
+    assert list(loaded_snap["Ticker"]) == ["BBB"]
     loaded = store.read_meta(date(2026, 8, 14), "premarket")
     assert is_today_et(loaded, NOW) is True
     yesterday = {"fetched_at": datetime(2026, 8, 13, 9, 15, tzinfo=ET).isoformat()}
     assert is_today_et(yesterday, NOW) is False
+
+
+def test_rth_round_trip(tmp_path):
+    store = SnapshotStore(tmp_path)
+    ranked = pd.DataFrame({"ticker": ["BBB"], "vrp": [0.1]})
+    folder = store.write_rth(
+        date(2026, 8, 14),
+        ranked=ranked,
+        brief="live open",
+        meta={"fetched_at": NOW.isoformat(), "job": "rth"},
+    )
+    assert (folder / "brief.md").read_text() == "live open"
+    assert (folder / "ranked.csv").exists()
+    assert store.load_premarket_snapshot(date(2026, 8, 14)) is None

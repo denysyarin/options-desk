@@ -19,7 +19,6 @@ concurrency:
 
 permissions:
   contents: write
-  issues: write
 
 jobs:
   premarket:
@@ -31,7 +30,7 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -r requirements.txt
-      - name: Premarket screen
+      - name: Premarket prelayer
         env:
           FINVIZ_AUTH_TOKEN: ${{ secrets.FINVIZ_AUTH_TOKEN }}
           SNAPSHOT_ROOT: snapshots
@@ -51,38 +50,3 @@ jobs:
           git commit -m "Premarket desk snapshot"
           git pull --rebase origin main
           git push
-      - name: Comment standing issue
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DESK_GITHUB_ISSUE: ${{ vars.DESK_GITHUB_ISSUE }}
-        run: |
-          if [ -z "$DESK_GITHUB_ISSUE" ]; then
-            echo "DESK_GITHUB_ISSUE not set; skip inbox comment"
-            exit 0
-          fi
-          DAY=$(ls -1 snapshots | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' | tail -1)
-          FILE="snapshots/${DAY}/premarket/brief.md"
-          if [ ! -f "$FILE" ]; then
-            echo "no brief at $FILE"
-            exit 0
-          fi
-          gh issue comment "$DESK_GITHUB_ISSUE" --body-file "$FILE"
-      - name: Fire analyst webhook
-        continue-on-error: true
-        env:
-          ANALYST_WEBHOOK_URL: ${{ secrets.ANALYST_WEBHOOK_URL }}
-          ANALYST_WEBHOOK_TOKEN: ${{ secrets.ANALYST_WEBHOOK_TOKEN }}
-        run: |
-          if [ -z "$ANALYST_WEBHOOK_URL" ]; then
-            echo "no analyst webhook configured"
-            exit 0
-          fi
-          DAY=$(ls -1 snapshots | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' | tail -1)
-          BRIEF=$(cat "snapshots/${DAY}/premarket/brief.md")
-          jq -n --arg date "$DAY" --arg brief "$BRIEF" \
-            '{date:$date, brief:$brief, snapshot_dir:("snapshots/"+$date+"/premarket")}' \
-            > /tmp/analyst.json
-          curl -sS -X POST "$ANALYST_WEBHOOK_URL" \
-            -H "Authorization: Bearer $ANALYST_WEBHOOK_TOKEN" \
-            -H "Content-Type: application/json" \
-            --data @/tmp/analyst.json

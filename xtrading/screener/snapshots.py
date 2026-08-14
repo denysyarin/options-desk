@@ -1,4 +1,4 @@
-"""Dated on-disk snapshots for overnight RV and premarket screens."""
+"""Dated on-disk snapshots for overnight RV, premarket prelayer, and RTH ranks."""
 from __future__ import annotations
 
 import json
@@ -59,16 +59,38 @@ class SnapshotStore:
         d: date,
         *,
         snapshot: pd.DataFrame,
+        meta: dict,
+        ranked: pd.DataFrame | None = None,
+        brief: str | None = None,
+    ) -> Path:
+        folder = self._job_dir(d, "premarket")
+        snapshot.to_csv(folder / "snapshot.csv", index=False)
+        if ranked is not None:
+            ranked.to_csv(folder / "ranked.csv", index=False)
+        if brief:
+            (folder / "brief.md").write_text(brief)
+        (folder / "meta.json").write_text(json.dumps(meta, indent=2, default=_json_default))
+        return folder
+
+    def write_rth(
+        self,
+        d: date,
+        *,
         ranked: pd.DataFrame,
         brief: str,
         meta: dict,
     ) -> Path:
-        folder = self._job_dir(d, "premarket")
-        snapshot.to_csv(folder / "snapshot.csv", index=False)
+        folder = self._job_dir(d, "rth")
         ranked.to_csv(folder / "ranked.csv", index=False)
         (folder / "brief.md").write_text(brief)
         (folder / "meta.json").write_text(json.dumps(meta, indent=2, default=_json_default))
         return folder
+
+    def load_premarket_snapshot(self, d: date) -> Optional[pd.DataFrame]:
+        path = self.day_dir(d) / "premarket" / "snapshot.csv"
+        if not path.exists():
+            return None
+        return pd.read_csv(path)
 
     def read_meta(self, d: date, job: str) -> dict:
         path = self.day_dir(d) / job / "meta.json"

@@ -1,4 +1,4 @@
-"""Scheduled overnight RV and premarket put-premium jobs."""
+"""Scheduled overnight RV, 9:15 Gap prelayer, and 9:30 RTH put-premium jobs."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -20,7 +20,7 @@ from xtrading.session import et_date, job_for
 
 DEFAULT_FILTERS = "sh_opt_option,sh_avgvol_o400,sh_price_o10"
 OVERNIGHT_TOP_N = 20
-PREMARKET_CHAIN_N = 3
+RTH_CHAIN_N = 3
 
 
 class SessionSkip(RuntimeError):
@@ -89,16 +89,58 @@ def run_premarket(
     filters: str,
     snapshot_root: Path | str,
     now: Callable[[], datetime],
-    top_n: int = PREMARKET_CHAIN_N,
+    top_n: int = RTH_CHAIN_N,
     force: bool = False,
 ) -> Path:
     _require("premarket", now, force)
     today = et_date(now())
-    print(f"Premarket job {today.isoformat()}: 1 Gap screener, then options JSON (unthrottled)")
+    print(f"Premarket job {today.isoformat()}: 1 Gap screener, no chains")
     raw = _retry_once(lambda: provider.fetch_screener(
         filters, view=STAGE1_VIEW, columns=PREMARKET_COLUMNS,
     ))
     store = SnapshotStore(snapshot_root)
+    empty = raw.empty if hasattr(raw, "empty") else False
+    meta = {
+        "fetched_at": now().isoformat(),
+        "job": "premarket",
+        "empty_universe": bool(empty),
+        "errors": [],
+        "n_export_calls": 1,
+    }
+    return store.write_premarket(today, snapshot=raw, meta=meta)
+
+
+def _rv_source(ranked, rv: dict) -> str:
+    if not rv:
+        return "screener_month_vol"
+    used = set(ranked["ticker"].astype(str)) if not ranked.empty else set()
+    if used and not used.issubset(set(rv)):
+        return "mixed"
+    return "quote_20d"
+
+
+def run_rth(
+    provider,
+    *,
+    filters: str,
+    snapshot_root: Path | str,
+    now: Callable[[], datetime],
+    top_n: int = RTH_CHAIN_N,
+    force: bool = False,
+) -> Path:
+    _require("rth", now, force)
+    today = et_date(now())
+    store = SnapshotStore(snapshot_root)
+    raw = store.load_premarket_snapshot(today)
+    n_exports = 0
+    if raw is None:
+        print(f"RTH job {today.isoformat()}: missing prelayer, 1 Gap screener then options JSON")
+        raw = _retry_once(lambda: provider.fetch_screener(
+            filters, view=STAGE1_VIEW, columns=PREMARKET_COLUMNS,
+        ))
+        n_exports = 1
+    else:
+        print(f"RTH job {today.isoformat()}: using 9:15 snapshot, options JSON (unthrottled)")
     rv_date, rv = store.load_latest_rv(before=today)
     ranked = PutPremiumScreener(provider, now=now).run(
         filters=filters,
@@ -108,25 +150,16 @@ def run_premarket(
         pull_history=False,
         rv_override=rv or None,
     )
-    if rv:
-        used = set(ranked["ticker"].astype(str)) if not ranked.empty else set()
-        if used and not used.issubset(set(rv)):
-            rv_source = "mixed"
-        else:
-            rv_source = "quote_20d"
-    else:
-        rv_source = "screener_month_vol"
     empty = raw.empty if hasattr(raw, "empty") else False
     meta = {
         "fetched_at": now().isoformat(),
-        "job": "premarket",
+        "job": "rth",
         "rv_from": rv_date.isoformat() if rv_date else None,
-        "rv_source": rv_source,
+        "rv_source": _rv_source(ranked, rv),
         "empty_universe": bool(empty),
         "errors": [],
-        "n_export_calls": 1,
+        "n_export_calls": n_exports,
+        "prelayer": "snapshot" if n_exports == 0 else "screener_fallback",
     }
     brief = format_brief(ranked, raw, meta)
-    return store.write_premarket(
-        today, snapshot=raw, ranked=ranked, brief=brief, meta=meta,
-    )
+    return store.write_rth(today, ranked=ranked, brief=brief, meta=meta)

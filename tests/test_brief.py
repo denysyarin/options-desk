@@ -24,6 +24,7 @@ def test_brief_includes_vrp_gap_source_and_flags_not_token():
         snapshot,
         meta={
             "fetched_at": NOW.isoformat(),
+            "job": "rth",
             "rv_source": "quote_20d",
             "empty_universe": False,
         },
@@ -34,6 +35,7 @@ def test_brief_includes_vrp_gap_source_and_flags_not_token():
     assert "quote_20d" in text
     assert "FLAG" in text or "unreliable" in text.lower()
     assert "not advice" in text.lower() or "not financial advice" in text.lower()
+    assert "cash is open" in text.lower()
     assert "auth=" not in text
 
 

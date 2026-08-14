@@ -1,14 +1,15 @@
-"""Overnight RV cache and 9:15 premarket desk jobs."""
+"""Overnight RV cache, 9:15 prelayer, and 9:30 RTH desk jobs."""
 from datetime import datetime
 
 import pandas as pd
 import pytest
 
 from tests.test_put_premium import FakeProvider
-from xtrading.screener.jobs import SessionSkip, run_overnight, run_premarket
+from xtrading.screener.jobs import SessionSkip, run_overnight, run_premarket, run_rth
 from xtrading.session import ET
 
 PREMARKET_NOW = datetime(2026, 8, 14, 9, 15, tzinfo=ET)
+RTH_NOW = datetime(2026, 8, 14, 9, 30, tzinfo=ET)
 OVERNIGHT_NOW = datetime(2026, 8, 13, 16, 30, tzinfo=ET)
 
 
@@ -51,12 +52,8 @@ def test_overnight_pulls_history_for_top_20_not_options(tmp_path):
     assert "BBB" in set(rv.index.astype(str)) or "BBB" in rv.to_dict()
 
 
-def test_premarket_uses_overnight_rv_and_skips_quote_export(tmp_path, capsys):
+def test_premarket_is_snapshot_only_no_chains(tmp_path):
     p = DeskProvider()
-    run_overnight(
-        p, filters="f", snapshot_root=tmp_path, now=lambda: OVERNIGHT_NOW, top_n=3,
-    )
-    p.calls.clear()
     folder = run_premarket(
         p,
         filters="f",
@@ -64,21 +61,63 @@ def test_premarket_uses_overnight_rv_and_skips_quote_export(tmp_path, capsys):
         now=lambda: PREMARKET_NOW,
         top_n=3,
     )
-    assert not any(c.startswith("history:") for c in p.calls)
     assert any(c.startswith("screener:") for c in p.calls)
+    assert not any(c.startswith("history:") for c in p.calls)
+    assert not any(c.startswith("chain:") for c in p.calls)
+    assert (folder / "snapshot.csv").exists()
+    assert not (folder / "ranked.csv").exists()
+    assert not (folder / "brief.md").exists()
+    meta = (folder / "meta.json").read_text()
+    assert "test-token" not in meta
+    assert "auth=" not in meta
+
+
+def test_rth_uses_premarket_snapshot_overnight_rv_and_live_chains(tmp_path):
+    p = DeskProvider()
+    run_overnight(
+        p, filters="f", snapshot_root=tmp_path, now=lambda: OVERNIGHT_NOW, top_n=3,
+    )
+    run_premarket(
+        p, filters="f", snapshot_root=tmp_path, now=lambda: PREMARKET_NOW, top_n=3,
+    )
+    p.calls.clear()
+    folder = run_rth(
+        p,
+        filters="f",
+        snapshot_root=tmp_path,
+        now=lambda: RTH_NOW,
+        top_n=3,
+    )
+    assert not any(c.startswith("history:") for c in p.calls)
+    assert not any(c.startswith("screener:") for c in p.calls)
     assert any(c.startswith("chain:") for c in p.calls)
     brief = (folder / "brief.md").read_text()
     assert "quote_20d" in brief
+    assert "cash is open" in brief.lower()
     assert "BBB" in brief or "no surviving" in brief.lower()
     meta = (folder / "meta.json").read_text()
     assert "test-token" not in meta
     assert "auth=" not in meta
 
 
-def test_premarket_without_overnight_falls_back_to_month_vol(tmp_path):
+def test_rth_without_premarket_falls_back_to_screener(tmp_path):
     p = DeskProvider()
-    folder = run_premarket(
-        p, filters="f", snapshot_root=tmp_path, now=lambda: PREMARKET_NOW, top_n=3, force=True,
+    folder = run_rth(
+        p, filters="f", snapshot_root=tmp_path, now=lambda: RTH_NOW, top_n=3, force=True,
     )
+    assert any(c.startswith("screener:") for c in p.calls)
+    assert any(c.startswith("chain:") for c in p.calls)
     brief = (folder / "brief.md").read_text()
     assert "screener_month_vol" in brief
+
+
+def test_rth_wrong_window_skips():
+    with pytest.raises(SessionSkip):
+        run_rth(
+            DeskProvider(),
+            filters="x",
+            snapshot_root="unused",
+            now=lambda: PREMARKET_NOW,
+            top_n=3,
+            force=False,
+        )

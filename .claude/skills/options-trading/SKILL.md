@@ -28,10 +28,10 @@ status: active
 
 Do **not** scrape Finviz from a chat. Python + GitHub Actions already did.
 
-1. Open the latest `snapshots/YYYY-MM-DD/premarket/brief.md` (and `ranked.csv`).
-2. If `premarket/meta.json` `fetched_at` is not **today America/New_York**, the snapshot is stale. Say so. Do not treat it as live.
+1. Open the latest `snapshots/YYYY-MM-DD/rth/brief.md` (and `ranked.csv`). That is the trade list.
+2. If `rth/meta.json` `fetched_at` is not **today America/New_York**, the snapshot is stale. Say so. Do not treat it as live.
 3. Trust Python numbers. Rank is VRP, then annualized RoC, then spread — never raw premium.
-4. Overnight RV lives in the previous session’s `snapshots/*/overnight/rv.json`.
+4. Gap / who-to-watch lives in `snapshots/*/premarket/snapshot.csv` (9:15 prelayer). Overnight RV lives in the previous session’s `snapshots/*/overnight/rv.json`.
 5. Optional narrative: `prompts/daily-desk-analyst.md`. The standing GitHub issue is the inbox.
 
 ---

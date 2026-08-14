@@ -18,9 +18,9 @@ A model is optional narrative, not the clock, and not the Finviz client. If the 
 |---|---|---|---|
 | Clock | Cloudflare Worker, `*/15`, ET gate at 09:15 and 16:30 | Yes | cron-job.org posts the same `workflow_dispatch`; or manual `force` |
 | Data + ranked puts | GitHub Actions + this repo’s Python + `FINVIZ_AUTH_TOKEN` | Yes | Nothing else calls Finviz. Retry / `force` dispatch |
-| Deterministic brief | Python `brief.md` from the same job (VRP, gaps, earnings, flags) | Yes | N/A — same process as data |
-| Inbox | One standing GitHub issue; the job **comments** the brief | Yes | Files still on `main` under `snapshots/` |
-| Skill analysis | Optional **analyst webhook** fired *after* the premarket commit (Claude routine, Cursor agent, OpenAI, whatever is behind the URL) | Best effort | Issue already has the brief. Analyst never calls Finviz |
+| Deterministic brief | Python `brief.md` from the **9:30 RTH** job (live chains, frozen Gap) | Yes | N/A — same process as data |
+| Inbox | One standing GitHub issue; the **RTH** job **comments** the brief | Yes | Files still on `main` under `snapshots/` |
+| Skill analysis | Optional **analyst webhook** fired *after* the RTH commit (Claude routine, Cursor agent, OpenAI, whatever is behind the URL) | Best effort | Issue already has the brief. Analyst never calls Finviz |
 
 Two inboxes, same content spine:
 
@@ -43,7 +43,7 @@ Do not put `FINVIZ_AUTH_TOKEN` in any model vendor’s environment.
 
 | Piece | Role |
 |---|---|
-| Cloudflare Worker | Alarm only. Weekday 09:15 ET → `premarket.yml`. Weekday 16:30 ET → `overnight.yml`. |
+| Cloudflare Worker | Alarm only. Weekday 09:15 ET → `premarket.yml`. Weekday 09:30 ET → `rth.yml`. Weekday 16:30 ET → `overnight.yml`. |
 | GitHub Actions | Python jobs, Finviz, commit snapshots, comment the standing issue, fire the analyst webhook. |
 | `snapshots/YYYY-MM-DD/` on `main` | Durable archive. |
 | Standing GitHub issue | Human inbox. One thread, newest comment is today. |
@@ -57,8 +57,9 @@ Manual wake: `workflow_dispatch` with `force=true`.
 
 `xtrading/session.py`, timezone `America/New_York`.
 
-- `job_for(now) -> "overnight" | "premarket" | "skip"`
-- Premarket: weekday, 09:15 ET
+- `job_for(now) -> "overnight" | "premarket" | "rth" | "skip"`
+- Premarket: weekday, 09:15 ET (Gap snapshot only — not a trade list)
+- RTH: weekday, 09:30 ET (live option chains + ranked puts)
 - Overnight: weekday, 16:30 ET
 - Weekend: skip
 - Market holidays: still run; empty universe → `empty_universe: true`, comment “no liquid names”, no fake ranks
@@ -66,7 +67,9 @@ Manual wake: `workflow_dispatch` with `force=true`.
 
 Overnight on date **D** (session just closed) → `snapshots/D/overnight/`.
 
-Premarket on date **T** → `snapshots/T/premarket/` and loads `rv.json` from the latest overnight date **strictly before T**, walking back at most 4 calendar days (Friday overnight → Monday premarket).
+Premarket on date **T** → `snapshots/T/premarket/snapshot.csv` (Gap universe only).
+
+RTH on date **T** → `snapshots/T/rth/` ranked puts from live chains, Gap frozen from that morning’s premarket snapshot, `rv.json` from the latest overnight date **strictly before T**, walking back at most 4 calendar days (Friday overnight → Monday open).
 
 ## Components
 
@@ -82,9 +85,10 @@ snapshots/YYYY-MM-DD/
   overnight/rv.json
   overnight/meta.json
   premarket/snapshot.csv
-  premarket/ranked.csv
-  premarket/brief.md
   premarket/meta.json
+  rth/ranked.csv
+  rth/brief.md
+  rth/meta.json
 ```
 
 Do not git-commit `overnight/history/*.csv` (too large). Optional 7-day Actions artifact.
@@ -102,34 +106,35 @@ Always includes:
 - Premarket Gap / rel volume for those tickers
 - Earnings inside the DTE window (already hard-filtered out of ranks; still listed if present in the universe)
 - Unreliable-IV flags, missing overnight RV, empty universe
-- One-line “not advice; snapshot may be stale after 9:30 when Gap freezes”
+- One-line “not advice”; RTH brief says cash is open, chains are live, Gap is frozen from the 9:15 prelayer
 
 ### `xtrading/screener/jobs.py`
 
-`run_overnight(...)` `run_premarket(...)`  
-CLI: `python -m xtrading.screener overnight|premarket`
+`run_overnight(...)` `run_premarket(...)` `run_rth(...)`  
+CLI: `python -m xtrading.screener overnight|premarket|rth`
 
 Print call plan before any export.
 
 ### `PutPremiumScreener`
 
-Unchanged ranking. Premarket uses the Gap screener export. Morning never `fetch_history`. Top 3: `fetch_options_json` for listed 2–9 DTE. Missing RV → month range-vol.
+Unchanged ranking. RTH feeds it the 9:15 Gap snapshot (or one fallback screener if that file is missing). Morning never `fetch_history`. Top 3: `fetch_options_json` for listed 2–9 DTE. Missing RV → month range-vol.
 
 ### GitHub Actions
 
-`overnight.yml` and `premarket.yml`.
+`overnight.yml`, `premarket.yml`, and `rth.yml`.
 
 - `workflow_dispatch` + `force`
-- `concurrency: finviz-export` across both
-- `contents: write`, `issues: write`
-- Premarket after commit: comment `brief.md` on standing issue `DESK_GITHUB_ISSUE` (repo variable, created once)
-- Then, if secrets `ANALYST_WEBHOOK_URL` and `ANALYST_WEBHOOK_TOKEN` exist, POST JSON `{ "date", "brief", "snapshot_dir" }` with `Authorization: Bearer`. Missing secrets → skip. `continue-on-error`. Payload is the Python brief, not a request to scrape Finviz.
+- `concurrency: finviz-export` across all three
+- `contents: write`; `issues: write` on **rth** only
+- Premarket after commit: snapshot files only. No issue comment. No analyst webhook.
+- RTH after commit: comment `rth/brief.md` on standing issue `DESK_GITHUB_ISSUE` (repo variable, created once)
+- Then, if secrets `ANALYST_WEBHOOK_URL` and `ANALYST_WEBHOOK_TOKEN` exist, POST JSON `{ "date", "brief", "snapshot_dir" }` with `Authorization: Bearer`. Missing secrets → skip. `continue-on-error`. Payload is the RTH Python brief, not a request to scrape Finviz. `snapshot_dir` is `snapshots/T/rth`.
 - `FINVIZ_AUTH_TOKEN` required. Missing → fail before HTTP
 - Push: rebase retry once, never `--force`
 
 ### Cloudflare Worker
 
-`infra/cloudflare-clock/`. Cron `*/15 * * * *`. ET exact 09:15 / 16:30 weekdays only. Dispatch workflows, never `force`. Secrets: `GH_TOKEN` (Actions write on this repo only), `GH_OWNER`, `GH_REPO`.
+`infra/cloudflare-clock/`. Cron `*/15 * * * *`. ET exact 09:15 / 09:30 / 16:30 weekdays only. Dispatch workflows, never `force`. Secrets: `GH_TOKEN` (Actions write on this repo only), `GH_OWNER`, `GH_REPO`.
 
 cron-job.org is the documented spare clock.
 
@@ -155,17 +160,20 @@ Premarket columns: Ticker, Price, Previous Close, Gap, Change, Change from Open,
 Default filters (`FINVIZ_SCREENER_FILTERS` override): `sh_opt_option,sh_avgvol_o400,sh_price_o10`.
 
 Overnight: top 20 by month range-vol then avg volume, then quote history.  
-Premarket: one Gap export, chains for top 3 survivors.
+Premarket: one Gap export, no chains.  
+RTH: zero exports when today’s snapshot exists; options JSON for top 3. Missing snapshot → one Gap export (frozen) then JSON.
 
 ## Export budget
 
 Overnight: 1 + 20 exports ≈ 21 min.  
-Premarket: 1 export. JSON unthrottled. Leave the rest of 9:15–9:30 unused for a retry.
+Premarket: 1 export. Leave 9:15–9:30 unused for a retry.  
+RTH: 0 exports if the prelayer landed; JSON unthrottled.
 
 ## Failure modes
 
-- Duplicate clock: `concurrency: finviz-export`; Worker only at exact 09:15 / 16:30
-- Missed 9:15: `force=true` dispatch
+- Duplicate clock: `concurrency: finviz-export`; Worker only at exact 09:15 / 09:30 / 16:30
+- Missed 9:15: `force=true` dispatch; 9:30 RTH falls back to one live screener
+- Missed 9:30: `force=true` dispatch of `rth.yml`
 - Partial overnight: keep finished tickers; morning does not quote-export
 - Finviz 429: wait once, retry once, stop, commit what exists, comment the error
 - Empty holiday: comment, no fake ranks
@@ -178,7 +186,8 @@ Premarket: 1 export. JSON unthrottled. Leave the rest of 9:15–9:30 unused for 
 
 - Session gate including DST wall time in ET
 - Overnight: 20 histories, no options JSON, 60s between quotes
-- Premarket: Gap column, zero `fetch_history` when `rv.json` exists, top 3 JSON, `rv_source`
+- Premarket: Gap column, zero `fetch_history`, zero options JSON
+- RTH: reads today’s snapshot, zero `fetch_history`, top 3 JSON, `rv_source`; missing snapshot still runs
 - `brief.md` from a fixture ranked table contains VRP, Gap, flags, and does not contain a fake token
 - Missing overnight still briefs with `screener_month_vol`
 - Redaction in logs and meta
@@ -197,4 +206,4 @@ macOS LaunchAgents, iOS as Finviz client, Telegram, NYSE holiday calendar, commi
 3. Create standing issue “Options desk daily”; set repo variable `DESK_GITHUB_ISSUE`
 4. Watch the repo or enable issue-comment notifications on that issue (this is how the phone nags you)
 5. Optional: point `ANALYST_WEBHOOK_URL` / `ANALYST_WEBHOOK_TOKEN` at Claude, Cursor, or OpenAI using `prompts/daily-desk-analyst.md`. Skip this and the desk still delivers.
-6. One `force` premarket dispatch; confirm commit + issue comment.
+6. One `force` rth dispatch; confirm commit + issue comment. Premarket is snapshot-only.
