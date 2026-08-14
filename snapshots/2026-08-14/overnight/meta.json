@@ -1,0 +1,30 @@
+{
+  "fetched_at": "2026-08-14T13:16:04.762331-04:00",
+  "job": "overnight",
+  "tickers": [
+    "AXTX",
+    "NBIL",
+    "NEBX",
+    "NBIG",
+    "SNDQ",
+    "AAOX",
+    "IREZ",
+    "BEX",
+    "SNXX",
+    "SNDU",
+    "IRE",
+    "IREX",
+    "LITX",
+    "COHX",
+    "HIMZ",
+    "CRDU",
+    "LABX",
+    "ASTX",
+    "WDCX",
+    "APLX"
+  ],
+  "n_export_calls": 21,
+  "empty_universe": false,
+  "errors": [],
+  "rv_source": "quote_20d"
+}
