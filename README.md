@@ -30,3 +30,5 @@ One export call per 60 seconds. Expired expiries (e.g. `e=2025-07-18`) return he
 - Multi-leg strategy builder (spreads, iron condor, straddle)
 - IV surface helpers and option-chain screening
 - Finviz Elite chain + screener adapter behind a vendor-swappable `ChainProvider`
+- Put-premium screener (`xtrading/screener/put_premium.py`): one Stage-1 universe export, then chains for the top 3 names only (Friday expiries, 2–9 DTE). Prints the call plan and ETA first. Hard-filters earnings, liquidity, spread, quote age, and delta; ranks by VRP, then annualized RoC, then spread tightness — never by raw premium.
+

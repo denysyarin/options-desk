@@ -107,10 +107,13 @@ class FinvizProvider(ChainProvider):
         spot: Optional[float] = None,
         max_age: timedelta = timedelta(minutes=5),
         r: float = 0.05,
+        enforce_stale: bool = True,
     ) -> OptionChain:
         ticker = ticker.upper()
         body = self._load_or_fetch("options", ticker, expiry, extra={"ty": "oc", "e": expiry.isoformat(), "t": ticker})
-        return self._parse_chain(body, ticker, expiry, spot=spot, max_age=max_age, r=r)
+        return self._parse_chain(
+            body, ticker, expiry, spot=spot, max_age=max_age, r=r, enforce_stale=enforce_stale,
+        )
 
     def fetch_screener(self, filters: str, *, view: str = "111") -> pd.DataFrame:
         body = self._load_or_fetch(
@@ -233,6 +236,7 @@ class FinvizProvider(ChainProvider):
         spot: Optional[float],
         max_age: timedelta,
         r: float,
+        enforce_stale: bool = True,
     ) -> OptionChain:
         df = pd.read_csv(StringIO(body))
         if df.empty:
@@ -312,15 +316,16 @@ class FinvizProvider(ChainProvider):
                     if q.finviz_greeks.get(k) is not None
                 }
 
-        stale = [
-            q for q in quotes
-            if q.quote_age is None or q.quote_age > max_age
-        ]
-        if stale:
-            age = max((q.quote_age or max_age) for q in stale)
-            raise ValueError(
-                f"quotes older than max_age={max_age}: oldest age {age}"
-            )
+        if enforce_stale:
+            stale = [
+                q for q in quotes
+                if q.quote_age is None or q.quote_age > max_age
+            ]
+            if stale:
+                age = max((q.quote_age or max_age) for q in stale)
+                raise ValueError(
+                    f"quotes older than max_age={max_age}: oldest age {age}"
+                )
 
         return OptionChain(
             ticker=ticker,

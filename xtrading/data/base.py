@@ -68,6 +68,7 @@ class ChainProvider(ABC):
         spot: Optional[float] = None,
         max_age: timedelta = timedelta(minutes=5),
         r: float = 0.05,
+        enforce_stale: bool = True,
     ) -> OptionChain:
         raise NotImplementedError
 
