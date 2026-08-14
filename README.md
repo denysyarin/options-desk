@@ -30,7 +30,10 @@ cp .env.example .env   # then set FINVIZ_AUTH_TOKEN
 python -m pytest tests/ -q
 ```
 
-`FINVIZ_AUTH_TOKEN` is never in git, logs, or a model vendor. `/export/*` is one call per 60 seconds. Options JSON on `/stock?t=&ty=oc&e=` is unthrottled and is where IV actually lives. `/export/quote` is daily closes (20d RV), overnight only.
+`FINVIZ_AUTH_TOKEN` is the Elite **export** API UUID in `auth=` on  
+`https://elite.finviz.com/export/screener?...&auth=...` (same value works on `/export/quote`).  
+Get it: Elite → Screener → **Export** → copy `auth=`. Docs: [api_explanation.ashx](https://elite.finviz.com/api_explanation.ashx).  
+Not a login cookie, Google OAuth, or password. Never put it in git, logs, or a model vendor.
 
 ## What's in here
 
