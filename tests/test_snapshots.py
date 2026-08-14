@@ -71,3 +71,18 @@ def test_rth_round_trip(tmp_path):
     assert (folder / "brief.md").read_text() == "live open"
     assert (folder / "ranked.csv").exists()
     assert store.load_premarket_snapshot(date(2026, 8, 14)) is None
+    assert folder.name == "rth"
+
+
+def test_rth_full_job_folder(tmp_path):
+    store = SnapshotStore(tmp_path)
+    folder = store.write_rth(
+        date(2026, 8, 14),
+        ranked=pd.DataFrame({"ticker": ["AAA"], "vrp": [0.2]}),
+        brief="full dump",
+        meta={"chain_mode": "all_watchlist"},
+        job="rth-full",
+    )
+    assert folder.name == "rth-full"
+    assert (tmp_path / "2026-08-14" / "rth-full" / "brief.md").read_text() == "full dump"
+    assert not (tmp_path / "2026-08-14" / "rth").exists()

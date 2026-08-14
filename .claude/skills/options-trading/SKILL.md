@@ -28,11 +28,21 @@ status: active
 
 Do **not** scrape Finviz from a chat. Python + GitHub Actions already did.
 
-1. Open the latest `snapshots/YYYY-MM-DD/rth/brief.md` (and `ranked.csv`). That is the trade list.
+Universe is `config/watchlist.txt` (names you are willing to be assigned). Rank still discovers the trade inside that list.
+
+1. Open the latest `snapshots/YYYY-MM-DD/rth/brief.md` (and `ranked.csv`). That is the trade list (top 5 by month vol, then VRP).
 2. If `rth/meta.json` `fetched_at` is not **today America/New_York**, the snapshot is stale. Say so. Do not treat it as live.
 3. Trust Python numbers. Rank is VRP, then annualized RoC, then spread — never raw premium.
 4. Gap / who-to-watch lives in `snapshots/*/premarket/snapshot.csv` (9:15 prelayer). Overnight RV lives in the previous session’s `snapshots/*/overnight/rv.json`.
 5. Optional narrative: `prompts/daily-desk-analyst.md`. The standing GitHub issue is the inbox.
+
+If the human asks to dump / chain / rank the **full watchlist**:
+
+```bash
+python -m xtrading.screener rth --force --all-watchlist
+```
+
+Writes `snapshots/T/rth-full/`. Do not overwrite `rth/`. Do not commit unless asked. Do not comment it on the standing issue. Still never scrape Finviz HTML from chat. Never print `FINVIZ_AUTH_TOKEN`. If the token is missing, say so and stop.
 
 ---
 

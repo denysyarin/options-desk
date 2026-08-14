@@ -8,9 +8,11 @@ Python never asks a model for a rank. Claude / Cursor / OpenAI are optional narr
 
 Every weekday:
 
-- **16:30 ET** overnight: screener + `/export/quote` for the top 20 → `snapshots/YYYY-MM-DD/overnight/rv.json`
-- **09:15 ET** premarket: one Gap screener only → `snapshots/YYYY-MM-DD/premarket/snapshot.csv` (who gapped — not a trade list)
-- **09:30 ET** RTH: live option JSON for the top 3 → `rth/brief.md` + comment on the standing GitHub issue
+- **16:30 ET** overnight: watchlist screener + `/export/quote` for up to 20 names (Finviz export cap) → `snapshots/YYYY-MM-DD/overnight/rv.json`
+- **09:15 ET** premarket: one Gap screener for the watchlist → `snapshots/YYYY-MM-DD/premarket/snapshot.csv` (who gapped — not a trade list)
+- **09:30 ET** RTH: live option JSON for the top 5 → `rth/brief.md` + comment on the standing GitHub issue
+
+Universe: `config/watchlist.txt`. Discovery ranking still runs inside that list.
 
 Clock: Cloudflare Worker (`infra/cloudflare-clock`). Muscle: GitHub Actions. Inbox: that issue. Analyst webhook is optional (`ANALYST_WEBHOOK_URL`) and fires after the **RTH** commit.
 
@@ -18,9 +20,10 @@ Clock: Cloudflare Worker (`infra/cloudflare-clock`). Muscle: GitHub Actions. Inb
 python -m xtrading.screener overnight --force
 python -m xtrading.screener premarket --force
 python -m xtrading.screener rth --force
+python -m xtrading.screener rth --force --all-watchlist   # agent/manual: every watchlist name → rth-full/
 ```
 
-Setup once: repo secret `FINVIZ_AUTH_TOKEN`, variable `DESK_GITHUB_ISSUE`, Worker secrets, watch the issue on your phone. Spec: `docs/superpowers/specs/2026-08-14-premarket-prelayer-design.md`.
+Setup once: repo secret `FINVIZ_AUTH_TOKEN`, variable `DESK_GITHUB_ISSUE`, Worker secrets, watch the issue on your phone. Specs: `docs/superpowers/specs/2026-08-14-premarket-prelayer-design.md`, `docs/superpowers/specs/2026-08-14-watchlist-universe-design.md`.
 
 ## Setup
 

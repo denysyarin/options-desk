@@ -79,8 +79,9 @@ class SnapshotStore:
         ranked: pd.DataFrame,
         brief: str,
         meta: dict,
+        job: str = "rth",
     ) -> Path:
-        folder = self._job_dir(d, "rth")
+        folder = self._job_dir(d, job)
         ranked.to_csv(folder / "ranked.csv", index=False)
         (folder / "brief.md").write_text(brief)
         (folder / "meta.json").write_text(json.dumps(meta, indent=2, default=_json_default))

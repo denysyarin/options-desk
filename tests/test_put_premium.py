@@ -242,7 +242,8 @@ class FakeProvider:
         })
 
     def fetch_screener(self, filters: str, **kwargs):
-        self.calls.append(f"screener:{filters}")
+        tickers = kwargs.get("tickers") or []
+        self.calls.append(f"screener:{filters}:{','.join(tickers)}")
         return self.screener_df.copy()
 
     def fetch_history(self, ticker):
@@ -293,6 +294,7 @@ def test_run_prints_plan_before_any_fetch(capsys, tmp_path):
     provider.fetch_chain = wrapped_chain
     PutPremiumScreener(provider, now=lambda: NOW).run(
         filters="fa_div_pos,sec_technology",
+        top_n=3,
     )
     assert log[0][0] == "screener"
     assert "Stage 1" in log[0][1]
