@@ -1,0 +1,47 @@
+name: overnight
+
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Run even outside the 16:30 ET window
+        type: boolean
+        default: false
+
+concurrency:
+  group: finviz-export
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  overnight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: Pull overnight RV
+        env:
+          FINVIZ_AUTH_TOKEN: ${{ secrets.FINVIZ_AUTH_TOKEN }}
+          SNAPSHOT_ROOT: snapshots
+        run: |
+          FLAG=""
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then FLAG="--force"; fi
+          python -m xtrading.screener overnight $FLAG
+      - name: Commit snapshot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add snapshots
+          if git diff --cached --quiet; then
+            echo "no snapshot changes"
+            exit 0
+          fi
+          git commit -m "Overnight RV snapshot"
+          git pull --rebase origin main
+          git push

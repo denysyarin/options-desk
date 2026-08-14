@@ -24,6 +24,18 @@ status: active
 
 ---
 
+## Daily desk (read this first on iPhone)
+
+Do **not** scrape Finviz from a chat. Python + GitHub Actions already did.
+
+1. Open the latest `snapshots/YYYY-MM-DD/premarket/brief.md` (and `ranked.csv`).
+2. If `premarket/meta.json` `fetched_at` is not **today America/New_York**, the snapshot is stale. Say so. Do not treat it as live.
+3. Trust Python numbers. Rank is VRP, then annualized RoC, then spread — never raw premium.
+4. Overnight RV lives in the previous session’s `snapshots/*/overnight/rv.json`.
+5. Optional narrative: `prompts/daily-desk-analyst.md`. The standing GitHub issue is the inbox.
+
+---
+
 ## Options Trading Skill
 
 ### Overview

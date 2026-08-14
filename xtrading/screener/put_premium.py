@@ -46,6 +46,9 @@ ASSUMPTIONS = {
 # column picker: ticker, price, vol week, vol month, avg volume, volume, earnings.
 STAGE1_VIEW = "152"
 STAGE1_COLUMNS = "1,65,50,51,63,67,68"
+# Ticker, Price, Previous Close, Gap, Change, Change from Open,
+# Rel Volume, Avg Volume, Volume, Vol Week, Vol Month, Earnings.
+PREMARKET_COLUMNS = "1,65,81,61,66,60,64,63,67,50,51,68"
 
 _RANGE_VOL_COLS = ("Volatility (Month)", "vol_month", "range_vol")
 _AVG_VOL_COLS = ("Average Volume", "avg_volume", "Avg Volume")
@@ -306,6 +309,10 @@ class PutPremiumScreener:
         filters: str,
         history: Optional[dict[str, pd.Series]] = None,
         top_n: int = ASSUMPTIONS["top_n"],
+        columns: str = STAGE1_COLUMNS,
+        screener_df: Optional[pd.DataFrame] = None,
+        pull_history: bool = True,
+        rv_override: Optional[dict[str, float]] = None,
     ) -> pd.DataFrame:
         today = self._now().astimezone(ET).date()
         expiries = expiries_in_window(
@@ -319,13 +326,15 @@ class PutPremiumScreener:
             jobs=[FetchJob("SCREENER", date.min)]
             + [FetchJob(f"TOP{i}", expiries[0] if expiries else today) for i in range(top_n)],
         )
-        print(format_plan(upper))
-        print("ETA covers /export/screener + /export/quote only. Options JSON is unthrottled.")
-        print()
-
-        raw = self.provider.fetch_screener(
-            filters, view=STAGE1_VIEW, columns=STAGE1_COLUMNS
-        )
+        if screener_df is None:
+            print(format_plan(upper))
+            print("ETA covers /export/screener + /export/quote only. Options JSON is unthrottled.")
+            print()
+            raw = self.provider.fetch_screener(
+                filters, view=STAGE1_VIEW, columns=columns
+            )
+        else:
+            raw = screener_df
         universe = _normalize_universe(raw)
         tickers = stage1_top_tickers(universe, n=top_n)
         earnings = {
@@ -343,7 +352,7 @@ class PutPremiumScreener:
         }
 
         history_map: dict[str, pd.Series] = dict(history or {})
-        fetch_hist = getattr(self.provider, "fetch_history", None)
+        fetch_hist = getattr(self.provider, "fetch_history", None) if pull_history else None
         listed_fn = getattr(self.provider, "list_expiries", None)
         jobs: list[FetchJob] = []
         for t in tickers:
@@ -416,7 +425,9 @@ class PutPremiumScreener:
                 continue
             merged = screened.merge(frame, on=["strike", "expiry_days", "iv"], how="inner")
             rv = rv_from_screener.get(job.ticker)
-            if job.ticker in history_map:
+            if rv_override and job.ticker in rv_override:
+                rv = float(rv_override[job.ticker])
+            elif job.ticker in history_map:
                 try:
                     rv = realized_vol(history_map[job.ticker], window=ASSUMPTIONS["rv_window"])
                 except ValueError:
