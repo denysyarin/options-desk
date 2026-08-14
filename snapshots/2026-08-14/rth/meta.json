@@ -1,0 +1,10 @@
+{
+  "fetched_at": "2026-08-14T13:32:48.215479-04:00",
+  "job": "rth",
+  "rv_from": null,
+  "rv_source": "screener_month_vol",
+  "empty_universe": false,
+  "errors": [],
+  "n_export_calls": 0,
+  "prelayer": "snapshot"
+}
