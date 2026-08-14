@@ -7,6 +7,10 @@ on:
         description: Run even outside the 16:30 ET window
         type: boolean
         default: false
+  # Backup clock. Dual UTC hours cover EDT (20:30) and EST (21:30).
+  schedule:
+    - cron: "30 20 * * 1-5"
+    - cron: "30 21 * * 1-5"
 
 concurrency:
   group: finviz-export
