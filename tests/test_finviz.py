@@ -236,3 +236,12 @@ def test_screener_parses_real_columns(tmp_path):
     df = p.fetch_screener(filters="fa_div_pos,sec_technology")
     assert list(df["Ticker"]) == ["AAPL", "MSFT", "NVDA"]
     assert df.loc[df["Ticker"] == "MSFT", "Price"].iloc[0] == pytest.approx(496.39)
+
+
+def test_screener_custom_columns_go_on_the_url(tmp_path):
+    p = _provider(tmp_path, body=SCREENER_CSV)
+    p.fetch_screener(filters="sec_technology", view="152", columns="1,65,50,51,63,67,68")
+    url = p._calls[0]  # type: ignore[attr-defined]
+    assert "v=152" in url
+    assert "c=1%2C65%2C50%2C51%2C63%2C67%2C68" in url or "c=1,65,50,51,63,67,68" in url
+    assert "auth=test-token" in url

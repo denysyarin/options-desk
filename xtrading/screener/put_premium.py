@@ -6,6 +6,7 @@ The call plan and ETA are printed before any network call.
 """
 from __future__ import annotations
 
+import math
 from datetime import date, datetime, timedelta
 from typing import Callable, Optional
 from zoneinfo import ZoneInfo
@@ -36,10 +37,16 @@ ASSUMPTIONS = {
     "cheap_quote": 0.10,
 }
 
-_IV_COLS = ("iv_proxy", "Implied Volatility", "IV", "Volatility")
-_VOL_COLS = ("avg_volume", "Avg Volume", "Average Volume", "Volume")
+# Live Elite custom export (v=151/152). There is no IV column and no
+# daily price history. These numeric ids were verified against the
+# column picker: ticker, price, vol week, vol month, avg volume, volume, earnings.
+STAGE1_VIEW = "152"
+STAGE1_COLUMNS = "1,65,50,51,63,67,68"
+
+_RANGE_VOL_COLS = ("Volatility (Month)", "vol_month", "range_vol")
+_AVG_VOL_COLS = ("Average Volume", "avg_volume", "Avg Volume")
 _PRICE_COLS = ("Price", "price")
-_EARN_COLS = ("earnings_date", "Earnings Date", "Earnings")
+_EARN_COLS = ("Earnings Date", "earnings_date", "Earnings")
 
 
 def realized_vol(closes: pd.Series, window: int = 20) -> float:
@@ -60,9 +67,14 @@ def expiries_in_window(today: date, min_dte: int = 2, max_dte: int = 9) -> list[
 
 
 def stage1_top_tickers(df: pd.DataFrame, n: int = 3) -> list[str]:
-    universe = _normalize_universe(df)
-    ranked = universe.sort_values(["iv_proxy", "avg_volume"], ascending=[False, False])
+    universe = df if "range_vol_ann" in df.columns else _normalize_universe(df)
+    ranked = universe.sort_values(["range_vol_ann", "avg_volume"], ascending=[False, False])
     return [str(t) for t in ranked["Ticker"].head(n).tolist()]
+
+
+def annualize_range_vol(daily_hl_frac: float) -> float:
+    """Finviz Volatility (Month) is avg daily high/low % range, not IV."""
+    return float(daily_hl_frac) * math.sqrt(ASSUMPTIONS["rv_annualization"])
 
 
 def _first_col(df: pd.DataFrame, names: tuple[str, ...]) -> Optional[str]:
@@ -87,7 +99,7 @@ def _parse_earnings(value) -> Optional[date]:
     if not text or text.lower() in {"nan", "none", "-"}:
         return None
     text = text.replace("AMC", "").replace("BMO", "").strip()
-    for fmt in ("%m/%d/%Y", "%Y-%m-%d", "%b %d %Y", "%b %d"):
+    for fmt in ("%m/%d/%Y %I:%M:%S %p", "%m/%d/%Y", "%Y-%m-%d", "%b %d %Y", "%b %d"):
         try:
             parsed = datetime.strptime(text, fmt)
             if parsed.year == 1900:
@@ -98,6 +110,16 @@ def _parse_earnings(value) -> Optional[date]:
     return None
 
 
+def _pct_series(raw: pd.Series) -> pd.Series:
+    cleaned = raw.astype(str).str.replace("%", "", regex=False).str.replace(",", "", regex=False)
+    x = pd.to_numeric(cleaned, errors="coerce")
+    if x.dropna().empty:
+        return x
+    if x.dropna().median() > 0.5:
+        x = x / 100.0
+    return x
+
+
 def _normalize_universe(df: pd.DataFrame) -> pd.DataFrame:
     out = pd.DataFrame()
     ticker_col = _first_col(df, ("Ticker", "ticker"))
@@ -105,18 +127,20 @@ def _normalize_universe(df: pd.DataFrame) -> pd.DataFrame:
         raise ValueError("screener export missing Ticker")
     out["Ticker"] = df[ticker_col].astype(str).str.upper()
     price_col = _first_col(df, _PRICE_COLS)
-    iv_col = _first_col(df, _IV_COLS)
-    vol_col = _first_col(df, _VOL_COLS)
+    range_col = _first_col(df, _RANGE_VOL_COLS)
+    vol_col = _first_col(df, _AVG_VOL_COLS)
     earn_col = _first_col(df, _EARN_COLS)
     out["Price"] = pd.to_numeric(df[price_col], errors="coerce") if price_col else np.nan
-    iv = pd.to_numeric(df[iv_col], errors="coerce") if iv_col else np.nan
-    # Finviz sometimes ships IV as percent (25.3) rather than 0.253
-    if isinstance(iv, pd.Series) and iv.dropna().gt(3).mean() > 0.5:
-        iv = iv / 100.0
-    out["iv_proxy"] = iv
+    if range_col is None:
+        raise ValueError(
+            "screener export has no Volatility (Month); Finviz has no IV column. "
+            "Use custom columns c=1,65,50,51,63,67,68"
+        )
+    daily_hl = _pct_series(df[range_col])
+    out["range_vol_ann"] = daily_hl * math.sqrt(ASSUMPTIONS["rv_annualization"])
     out["avg_volume"] = pd.to_numeric(df[vol_col], errors="coerce") if vol_col else np.nan
     out["earnings_date"] = df[earn_col].map(_parse_earnings) if earn_col else None
-    return out.dropna(subset=["Ticker", "iv_proxy"])
+    return out.dropna(subset=["Ticker", "range_vol_ann"])
 
 
 def format_plan(plan: FetchPlan) -> str:
@@ -205,9 +229,13 @@ def rank_rows(df: pd.DataFrame) -> pd.DataFrame:
 def format_table(df: pd.DataFrame) -> str:
     a = ASSUMPTIONS
     header = (
-        f"Assumptions: rate r={a['r']}, RV window={a['rv_window']} trading days "
-        f"(annualized √{a['rv_annualization']}), RoC annualized on {a['annualization_days']}-day year, "
-        f"cash-secured put capital = strike × {a['contract_multiplier']}. "
+        f"Assumptions: rate r={a['r']}. "
+        f"Finviz screener has no IV and no 20-day prices. "
+        f"Stage-1 rank uses Volatility (Month) = avg daily high/low range, annualized ×√{a['rv_annualization']}. "
+        f"Option IV comes only from the chain export. "
+        f"VRP = chain IV minus that Finviz month-vol proxy (not 20-day close-to-close RV). "
+        f"RoC annualized on a {a['annualization_days']}-day year. "
+        f"Cash-secured put capital = strike × {a['contract_multiplier']}. "
         f"Never rank by raw premium. "
         f"IV from a quote mid < ${a['cheap_quote']:.2f} is flagged unreliable."
     )
@@ -222,7 +250,7 @@ def format_table(df: pd.DataFrame) -> str:
         "mid": df["mid"].map(lambda x: f"{x:.2f}"),
         "delta": df["delta"].map(lambda x: f"{x:.3f}"),
         "IV": df["iv"].map(lambda x: f"{x:.3f}"),
-        "20d RV": df["rv_20d"].map(lambda x: f"{x:.3f}"),
+        "RV (ann.)": df["rv_20d"].map(lambda x: f"{x:.3f}"),
         "VRP": df["vrp"].map(lambda x: f"{x:.3f}"),
         "annualized RoC": df["annualized_roc"].map(lambda x: f"{x:.3f}"),
         "spread %": (df["spread_pct"] * 100).map(lambda x: f"{x:.1f}"),
@@ -273,7 +301,7 @@ class PutPremiumScreener:
         self,
         *,
         filters: str,
-        history: dict[str, pd.Series],
+        history: Optional[dict[str, pd.Series]] = None,
         top_n: int = ASSUMPTIONS["top_n"],
     ) -> pd.DataFrame:
         today = self._now().astimezone(ET).date()
@@ -291,11 +319,17 @@ class PutPremiumScreener:
         print(format_plan(upper))
         print()
 
-        raw = self.provider.fetch_screener(filters)
+        raw = self.provider.fetch_screener(
+            filters, view=STAGE1_VIEW, columns=STAGE1_COLUMNS
+        )
         universe = _normalize_universe(raw)
         tickers = stage1_top_tickers(universe, n=top_n)
         earnings = {
             str(r.Ticker): r.earnings_date
+            for r in universe.itertuples(index=False)
+        }
+        rv_from_screener = {
+            str(r.Ticker): float(r.range_vol_ann)
             for r in universe.itertuples(index=False)
         }
         spots = {
@@ -353,9 +387,14 @@ class PutPremiumScreener:
             if screened.empty:
                 continue
             merged = screened.merge(frame, on=["strike", "expiry_days", "iv"], how="inner")
-            try:
-                rv = realized_vol(history[job.ticker], window=ASSUMPTIONS["rv_window"])
-            except (KeyError, ValueError):
+            if history and job.ticker in history:
+                try:
+                    rv = realized_vol(history[job.ticker], window=ASSUMPTIONS["rv_window"])
+                except ValueError:
+                    rv = rv_from_screener.get(job.ticker)
+            else:
+                rv = rv_from_screener.get(job.ticker)
+            if rv is None:
                 continue
             for _, row in merged.iterrows():
                 candidates.append({

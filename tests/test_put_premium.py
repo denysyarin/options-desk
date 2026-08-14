@@ -52,18 +52,31 @@ def test_realized_vol_rejects_short_history():
         realized_vol(pd.Series(range(10)), window=20)
 
 
-def test_stage1_cuts_to_three_by_iv_proxy_then_volume_not_price():
+def test_stage1_cuts_to_three_by_month_range_vol_then_volume_not_price():
     df = pd.DataFrame({
         "Ticker": ["AAA", "BBB", "CCC", "DDD", "EEE"],
         "Price": [500.0, 10.0, 50.0, 80.0, 20.0],
-        "iv_proxy": [0.20, 0.80, 0.70, 0.70, 0.10],
-        "avg_volume": [1e6, 2e6, 9e6, 1e6, 9e6],
-        "earnings_date": [None] * 5,
+        "Volatility (Month)": ["2.00%", "8.00%", "7.00%", "7.00%", "1.00%"],
+        "Average Volume": [1e6, 2e6, 9e6, 1e6, 9e6],
+        "Earnings Date": [None] * 5,
     })
     picked = stage1_top_tickers(df, n=3)
-    # BBB highest IV; CCC vs DDD tied IV, CCC wins on volume; AAA fourth
+    # BBB highest month-vol; CCC vs DDD tied vol, CCC wins on volume
     assert picked == ["BBB", "CCC", "DDD"]
-    assert "AAA" not in picked  # high price must not rank it in
+    assert "AAA" not in picked
+
+
+def test_stage1_parses_live_finviz_earnings_timestamp():
+    df = pd.DataFrame({
+        "Ticker": ["MSFT"],
+        "Price": [498.07],
+        "Volatility (Month)": ["2.80%"],
+        "Average Volume": [40732.19],
+        "Earnings Date": ["7/29/2026 4:30:00 PM"],
+    })
+    from xtrading.screener.put_premium import _normalize_universe
+    uni = _normalize_universe(df)
+    assert uni.iloc[0]["earnings_date"] == date(2026, 7, 29)
 
 
 def test_expiries_in_2_to_9_dte_are_fridays_only():
@@ -209,12 +222,12 @@ def test_table_states_assumptions_and_required_columns():
     }]))
     text = format_table(df)
     for col in ("ticker", "strike", "DTE", "bid", "ask", "mid", "delta", "IV",
-                "20d RV", "VRP", "annualized RoC", "spread", "capital",
+                "RV", "VRP", "annualized RoC", "spread", "capital",
                 "breakeven", "timestamp"):
         assert col.lower().replace(" ", "") in text.lower().replace(" ", "").replace("%", "")
     assert "r=" in text or "rate" in text.lower()
-    assert "20" in text
-    assert "raw premium" not in text.lower() or "never rank by raw premium" in text.lower()
+    assert "Volatility (Month)" in text
+    assert "no IV" in text
 
 
 class FakeProvider:
@@ -223,9 +236,9 @@ class FakeProvider:
         self.screener_df = pd.DataFrame({
             "Ticker": ["AAA", "BBB", "CCC", "DDD", "EEE"],
             "Price": [50.0, 100.0, 80.0, 90.0, 10.0],
-            "iv_proxy": [0.15, 0.55, 0.50, 0.48, 0.10],
-            "avg_volume": [1e6, 3e6, 2e6, 2e6, 9e6],
-            "earnings_date": [None, None, None, date(2026, 8, 19), None],
+            "Volatility (Month)": ["1.50%", "5.50%", "5.00%", "4.80%", "1.00%"],
+            "Average Volume": [1e6, 3e6, 2e6, 2e6, 9e6],
+            "Earnings Date": [None, None, None, "8/19/2026 4:30:00 PM", None],
         })
 
     def fetch_screener(self, filters: str, **kwargs):
@@ -257,7 +270,6 @@ class FakeProvider:
 
 
 def test_run_prints_plan_before_any_fetch(capsys, tmp_path):
-    hist = {t: _closes() for t in ["BBB", "CCC", "DDD"]}
     provider = FakeProvider()
     log = []
     orig_screener = provider.fetch_screener
@@ -277,7 +289,6 @@ def test_run_prints_plan_before_any_fetch(capsys, tmp_path):
     provider.fetch_chain = wrapped_chain
     PutPremiumScreener(provider, now=lambda: NOW).run(
         filters="fa_div_pos,sec_technology",
-        history=hist,
     )
     assert log[0][0] == "screener"
     assert "Stage 1" in log[0][1]

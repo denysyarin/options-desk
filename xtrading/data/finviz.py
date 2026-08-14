@@ -115,12 +115,22 @@ class FinvizProvider(ChainProvider):
             body, ticker, expiry, spot=spot, max_age=max_age, r=r, enforce_stale=enforce_stale,
         )
 
-    def fetch_screener(self, filters: str, *, view: str = "111") -> pd.DataFrame:
+    def fetch_screener(
+        self,
+        filters: str,
+        *,
+        view: str = "111",
+        columns: Optional[str] = None,
+    ) -> pd.DataFrame:
+        extra = {"v": view, "f": filters}
+        if columns:
+            extra["c"] = columns
+        cache_key = f"{view}_{filters}_{columns or 'default'}"
         body = self._load_or_fetch(
             "screener",
-            filters.replace(",", "_"),
+            cache_key.replace(",", "_"),
             None,
-            extra={"v": view, "f": filters},
+            extra=extra,
         )
         return pd.read_csv(StringIO(body))
 
@@ -165,9 +175,13 @@ class FinvizProvider(ChainProvider):
         q = urlencode({"t": ticker, "ty": "oc", "e": expiry.isoformat(), "auth": self._token_or_raise()})
         return f"{_OPTIONS_BASE}?{q}"
 
-    def _screener_url(self, filters: str, view: str) -> str:
-        q = urlencode({"v": view, "f": filters, "auth": self._token_or_raise()})
-        return f"{_SCREENER_BASE}?{q}"
+    def _screener_url(self, filters: str, view: str, columns: Optional[str] = None) -> str:
+        q = {"v": view, "auth": self._token_or_raise()}
+        if filters:
+            q["f"] = filters
+        if columns:
+            q["c"] = columns
+        return f"{_SCREENER_BASE}?{urlencode(q)}"
 
     def _cache_path(self, kind: str, key: str, expiry: Optional[date]) -> Path:
         day = self._now().astimezone(ET).date().isoformat()
@@ -212,7 +226,7 @@ class FinvizProvider(ChainProvider):
         if kind == "options":
             url = self._options_url(extra["t"], date.fromisoformat(extra["e"]))
         else:
-            url = self._screener_url(extra["f"], extra["v"])
+            url = self._screener_url(extra.get("f") or "", extra["v"], extra.get("c"))
         self._throttle()
         try:
             body = self._fetcher(url)
