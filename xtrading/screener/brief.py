@@ -42,20 +42,34 @@ def format_brief(
         lines.append("No surviving cash-secured puts after hard filters.")
         return "\n".join(lines) + "\n"
 
-    lines.append("| ticker | strike | DTE | mid | delta | IV | 20d RV | VRP | Gap | flags |")
-    lines.append("|---|---|---|---|---|---|---|---|---|---|")
+    lines.append(
+        "| ticker | strike | DTE | mid | basis | RoC | delta | IV | 20d RV | VRP | Gap | flags |"
+    )
+    lines.append("|---|---|---|---|---|---|---|---|---|---|---|---|")
     for _, row in ranked.iterrows():
         ticker = str(row["ticker"]).upper()
         gap = gap_by.get(ticker, "")
         flags = []
         if bool(row.get("iv_unreliable", False)):
             flags.append("unreliable_IV")
+        strike = float(row["strike"])
+        mid = float(row["mid"])
+        if "basis" in row.index and pd.notna(row["basis"]):
+            basis = float(row["basis"])
+        elif "breakeven" in row.index and pd.notna(row["breakeven"]):
+            basis = float(row["breakeven"])
+        else:
+            basis = strike - mid
+        roc = float(row["annualized_roc"]) if "annualized_roc" in row.index else float("nan")
         lines.append(
-            "| {ticker} | {strike:.2f} | {dte} | {mid:.2f} | {delta:.3f} | {iv:.3f} | {rv:.3f} | {vrp:.3f} | {gap} | {flags} |".format(
+            "| {ticker} | {strike:.2f} | {dte} | {mid:.2f} | {basis:.2f} | {roc:.3f} | "
+            "{delta:.3f} | {iv:.3f} | {rv:.3f} | {vrp:.3f} | {gap} | {flags} |".format(
                 ticker=ticker,
-                strike=float(row["strike"]),
+                strike=strike,
                 dte=int(row["dte"]),
-                mid=float(row["mid"]),
+                mid=mid,
+                basis=basis,
+                roc=roc,
                 delta=float(row["delta"]),
                 iv=float(row["iv"]),
                 rv=float(row["rv_20d"]),

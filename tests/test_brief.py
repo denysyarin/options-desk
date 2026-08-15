@@ -14,7 +14,8 @@ def test_brief_includes_vrp_gap_source_and_flags_not_token():
     ranked = pd.DataFrame([{
         "ticker": "BBB", "strike": 96.0, "dte": 7, "bid": 1.4, "ask": 1.5,
         "mid": 1.45, "delta": -0.18, "iv": 0.45, "rv_20d": 0.25, "vrp": 0.20,
-        "annualized_roc": 0.8, "spread_pct": 0.069, "iv_unreliable": True,
+        "annualized_roc": 0.8, "basis": 94.55, "spread_pct": 0.069,
+        "iv_unreliable": True,
     }])
     snapshot = pd.DataFrame([{
         "Ticker": "BBB", "Gap": "3.10%", "Price": 100.0, "Relative Volume": 2.1,
@@ -37,6 +38,10 @@ def test_brief_includes_vrp_gap_source_and_flags_not_token():
     assert "not advice" in text.lower() or "not financial advice" in text.lower()
     assert "cash is open" in text.lower()
     assert "auth=" not in text
+    assert "basis" in text.lower()
+    assert "94.55" in text
+    assert "RoC" in text or "roc" in text.lower()
+    assert "0.800" in text or "0.8" in text
 
 
 def test_empty_universe_brief():

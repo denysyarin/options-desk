@@ -226,6 +226,8 @@ def rank_rows(df: pd.DataFrame) -> pd.DataFrame:
         out["capital"] = out["strike"] * ASSUMPTIONS["contract_multiplier"]
     if "breakeven" not in out.columns:
         out["breakeven"] = out["strike"] - out["mid"]
+    # basis == breakeven (strike − mid); skill triage uses the name "basis"
+    out["basis"] = out["strike"] - out["mid"]
     if "quote_time" not in out.columns and "last_trade" in out.columns:
         out["quote_time"] = out["last_trade"]
     if "iv_unreliable" not in out.columns:
@@ -267,6 +269,7 @@ def format_table(df: pd.DataFrame) -> str:
         "spread %": (df["spread_pct"] * 100).map(lambda x: f"{x:.1f}"),
         "capital": df["capital"].map(lambda x: f"{x:.0f}"),
         "breakeven": df["breakeven"].map(lambda x: f"{x:.2f}"),
+        "basis": df["basis"].map(lambda x: f"{x:.2f}"),
         "timestamp": df["quote_time"].astype(str),
         "unreliable_IV": df["iv_unreliable"].map(lambda x: "FLAG" if x else ""),
     })

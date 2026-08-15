@@ -1,6 +1,6 @@
 ---
 name: options-trading
-description: "Full options trading: Black-Scholes pricing, Greeks, IV surface, multi-leg strategies, and option screening. USE FOR: options, black-scholes, greeks, delta, gamma, theta, vega, implied volatility, iron condor, straddle, strangle, call, put, option chain."
+description: "Full options trading: Black-Scholes pricing, Greeks, IV surface, multi-leg strategies, option screening, and daily desk LOOK/IGNORE triage. USE FOR: options, black-scholes, greeks, delta, gamma, theta, vega, implied volatility, iron condor, straddle, strangle, call, put, option chain, daily desk, triage, CSP, wheel."
 related_skills:
   - technical-analysis
   - risk-and-portfolio
@@ -32,12 +32,36 @@ Do **not** scrape Finviz from a chat. Python + GitHub Actions already did.
 
 Universe is `config/watchlist.txt` (names you are willing to be assigned). Rank still discovers the trade inside that list.
 
-1. Open the latest `snapshots/YYYY-MM-DD/rth/brief.md` (and `ranked.csv`). That is the trade list (top 5 by month vol, then VRP).
+1. Open the latest `snapshots/YYYY-MM-DD/rth/brief.md` (and `ranked.csv`). That is the Python package (top 5 by month vol, then VRP → RoC → spread).
 2. If `rth/meta.json` `fetched_at` is not **today America/New_York**, the snapshot is stale. Say so. Do not treat it as live.
 3. Also check provenance: overnight/premarket tickers should intersect `config/watchlist.txt`, and RTH `meta.json` should include `chain_mode` (`top5` or `all_watchlist`). Date-fresh alone is not enough if the files were written by a pre-watchlist code path.
-4. Trust Python numbers. Rank is VRP, then annualized RoC, then spread — never raw premium.
+4. Trust Python numbers. Never invent ranks, mids, or strikes. CSV sort is VRP, then annualized RoC, then spread — never raw premium alone.
 5. Gap / who-to-watch lives in `snapshots/*/premarket/snapshot.csv` (9:15 prelayer). Overnight RV lives in the previous session’s `snapshots/*/overnight/rv.json`.
-6. Optional narrative: `prompts/daily-desk-analyst.md`. The standing GitHub issue is the inbox.
+6. **Your job is one short triage report** (not a second desk, not an essay). Use `prompts/daily-desk-analyst.md`. Standing GitHub issue is the inbox.
+
+### Triage output (≤ ~20 lines)
+
+Bilingual OK: English headers; RU words like `страйк` / `сейчас` fine.
+
+```
+# Desk triage — YYYY-MM-DD
+
+LOOK
+- Sell 1 Put TICKER DD.MM страйк K по ~mid | basis ~B | RoC ~R | why one line
+
+IGNORE
+- ticker/reason one line (or “all ranked — weak premium / negative VRP / …”)
+
+сейчас on LOOK #1   — or —   Nothing urgent
+
+Not advice. Numbers from Python brief only.
+```
+
+**LOOK may re-prioritize** vs CSV order using wheel criteria already in the brief: **premium size (`mid`)**, **basis (`strike − mid`)**, **annualized RoC**, assignment comfort. Do **not** require positive VRP for LOOK. Empty LOOK is valid when the mechanical list is weak.
+
+**IGNORE** deep-ITM hope puts (NLR-class), pennies, and anything you would not want assigned. NLR is off the watchlist on purpose.
+
+**Do not** write a long narrative on the morning pass. If the human asks to dig into a name (“analyze NBIS 205”), then expand — still only from package numbers + skill math, never Finviz scrape.
 
 **If snapshots are missing or stale (phone / web / container):** do not ask for a token. Tell the human to either (a) open GitHub Actions and `workflow_dispatch` `overnight` / `premarket` / `rth` with `force=true`, or (b) wait for the weekday clock. Then analyze whatever brief lands in git / the standing issue.
 

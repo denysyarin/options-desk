@@ -2,7 +2,7 @@
 
 Options pricing and a weekday put-premium desk on Finviz Elite.
 
-Python never asks a model for a rank. Claude / Cursor / OpenAI are optional narrators after the snapshot is already in git.
+Python never asks a model for a rank. After RTH lands, Claude (skill + `prompts/daily-desk-analyst.md`) writes one short LOOK/IGNORE triage; dig deeper only on request.
 
 ## Daily desk
 
@@ -23,7 +23,7 @@ python -m xtrading.screener rth --force
 python -m xtrading.screener rth --force --all-watchlist   # agent/manual: every watchlist name → rth-full/
 ```
 
-Setup once: repo secret `FINVIZ_AUTH_TOKEN`, variable `DESK_GITHUB_ISSUE`, Worker secrets, watch the issue on your phone. Specs: `docs/superpowers/specs/2026-08-14-premarket-prelayer-design.md`, `docs/superpowers/specs/2026-08-14-watchlist-universe-design.md`.
+Setup once: repo secret `FINVIZ_AUTH_TOKEN`, variable `DESK_GITHUB_ISSUE`, Worker secrets, watch the issue on your phone. Specs: `docs/superpowers/specs/2026-08-14-premarket-prelayer-design.md`, `docs/superpowers/specs/2026-08-14-watchlist-universe-design.md`, `docs/superpowers/specs/2026-08-15-one-claude-triage-design.md`.
 
 ## Setup
 

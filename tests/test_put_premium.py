@@ -240,8 +240,10 @@ def test_table_states_assumptions_and_required_columns():
     text = format_table(df)
     for col in ("ticker", "strike", "DTE", "bid", "ask", "mid", "delta", "IV",
                 "20d RV", "VRP", "annualized RoC", "spread", "capital",
-                "breakeven", "timestamp"):
+                "breakeven", "basis", "timestamp"):
         assert col.lower().replace(" ", "") in text.lower().replace(" ", "").replace("%", "")
+    assert float(df.iloc[0]["basis"]) == float(df.iloc[0]["breakeven"])
+    assert abs(float(df.iloc[0]["basis"]) - (95.0 - 1.45)) < 1e-9
     assert "r=" in text or "rate" in text.lower()
     assert "export/quote" in text
     assert "Never rank by raw premium" in text

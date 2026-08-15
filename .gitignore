@@ -7,3 +7,5 @@ __pycache__/
 .cache/
 snapshots/**/overnight/history/
 snapshots/**/rth-full/
+# personal P&L trade sheets — never commit
+*Блок опционов.csv
