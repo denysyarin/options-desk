@@ -188,6 +188,15 @@ def test_hard_filter_skips_quote_age_when_max_quote_age_is_none():
     assert list(kept["ticker"]) == ["OLD"]
 
 
+def test_hard_filter_stores_dollar_spread_and_spread_pct_separately():
+    q = _quote(bid=1.00, ask=1.10, mid=1.05)
+    row = _row_from_quote(q, delta=-0.18)
+    kept = hard_filter_rows(pd.DataFrame([row]), today=TODAY)
+    assert len(kept) == 1
+    assert float(kept.iloc[0]["spread"]) == pytest.approx(0.10)
+    assert float(kept.iloc[0]["spread_pct"]) == pytest.approx(0.10 / 1.05)
+
+
 def test_rank_is_vrp_then_roc_then_spread_never_raw_premium():
     # High premium, low VRP must lose to low premium, high VRP
     rich = dict(

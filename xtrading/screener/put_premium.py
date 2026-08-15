@@ -191,8 +191,9 @@ def hard_filter_rows(
         mid = row["mid"]
         if mid is None or mid <= 0:
             continue
-        spread = (row["ask"] - row["bid"]) / mid
-        if spread > ASSUMPTIONS["max_spread"]:
+        dollar_spread = float(row["ask"]) - float(row["bid"])
+        spread_pct = dollar_spread / mid
+        if spread_pct > ASSUMPTIONS["max_spread"]:
             continue
         if max_quote_age is not None:
             age = row.get("quote_age")
@@ -202,7 +203,8 @@ def hard_filter_rows(
         if not (ASSUMPTIONS["min_abs_delta"] <= abs_delta <= ASSUMPTIONS["max_abs_delta"]):
             continue
         rec = dict(row)
-        rec["spread"] = spread
+        rec["spread"] = dollar_spread
+        rec["spread_pct"] = spread_pct
         rec["iv_unreliable"] = bool(row.get("iv_unreliable", False)) or mid < ASSUMPTIONS["cheap_quote"]
         rows.append(rec)
     return pd.DataFrame(rows)
@@ -218,11 +220,8 @@ def rank_rows(df: pd.DataFrame) -> pd.DataFrame:
         out["annualized_roc"] = (out["mid"] / out["strike"]) * (
             ASSUMPTIONS["annualization_days"] / out["dte"]
         )
-    if "spread_pct" not in out.columns:
-        if "spread" in out.columns:
-            out["spread_pct"] = out["spread"]
-        else:
-            out["spread_pct"] = (out["ask"] - out["bid"]) / out["mid"]
+    out["spread"] = out["ask"] - out["bid"]
+    out["spread_pct"] = out["spread"] / out["mid"]
     if "capital" not in out.columns:
         out["capital"] = out["strike"] * ASSUMPTIONS["contract_multiplier"]
     if "breakeven" not in out.columns:
