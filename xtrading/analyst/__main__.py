@@ -11,7 +11,7 @@ import os
 import sys
 from pathlib import Path
 
-from xtrading.analyst.notify import build_push, send_push
+from xtrading.analyst.notify import build_push, claude_click_url, send_push
 from xtrading.analyst.triage import (
     DEFAULT_MODEL,
     count_candidates,
@@ -55,7 +55,7 @@ def main(argv: list[str] | None = None, *, llm_transport=None, push_transport=No
         if topic and not args.no_push
         else ""
     )
-    click = os.environ.get("DESK_ISSUE_URL") or None
+    click_target = env_or("DESK_CLICK", "claude")
 
     api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     if api_key:
@@ -87,6 +87,10 @@ def main(argv: list[str] | None = None, *, llm_transport=None, push_transport=No
 
     if not topic_url:
         return 0
+    if click_target == "issue":
+        click = os.environ.get("DESK_ISSUE_URL") or None
+    else:
+        click = claude_click_url(triage, source=f"{folder} in the options-desk repo")
     body, headers = build_push(triage, date=day, click=click)
     try:
         send_push(

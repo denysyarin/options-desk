@@ -2,12 +2,16 @@
 from __future__ import annotations
 
 from typing import Callable
+from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 NTFY_LIMIT = 4096  # bytes; longer bodies become attachments instead of text
 BODY_LIMIT = 3500  # leave room for headers and multibyte tickers
 TIMEOUT_S = 20
 URGENT_MARKERS = ("act now",)  # not "urgent": the quiet line reads "Nothing urgent"
+# Universal link: iOS opens the Claude app when installed, the web app otherwise.
+CLAUDE_NEW = "https://claude.ai/new"
+PROMPT_LIMIT = 3000
 
 Transport = Callable[[str, bytes, dict], bytes]
 
@@ -17,6 +21,20 @@ def truncate(text: str, limit: int = BODY_LIMIT) -> str:
     if len(encoded) <= limit:
         return text
     return encoded[: limit - 3].decode(errors="ignore") + "…"
+
+
+def claude_click_url(triage: str, *, source: str | None = None) -> str:
+    """Tapping the push should continue the desk conversation, not open GitHub."""
+    prompt = (
+        "Options desk triage below. Python already computed the ranks, so treat the "
+        "numbers as given.\n\n"
+        f"{triage}\n\n"
+        "Using the options-trading skill: which single entry is worth taking, what is "
+        "the assignment case at that basis, and what would invalidate it?"
+    )
+    if source:
+        prompt += f"\n\nSource: {source}"
+    return f"{CLAUDE_NEW}?{urlencode({'q': truncate(prompt, PROMPT_LIMIT)})}"
 
 
 def build_push(triage: str, *, date: str, click: str | None) -> tuple[str, dict]:

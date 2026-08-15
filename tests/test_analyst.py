@@ -5,8 +5,11 @@ import pytest
 
 from xtrading.analyst.__main__ import main
 from xtrading.analyst.notify import (
+    CLAUDE_NEW,
     NTFY_LIMIT,
+    PROMPT_LIMIT,
     build_push,
+    claude_click_url,
     send_push,
     truncate,
 )
@@ -145,6 +148,36 @@ def test_triage_templates_are_english_only():
         if any("\u0400" <= ch <= "\u04ff" for ch in line)
     ]
     assert cyrillic == []
+
+
+def test_claude_click_url_prefills_the_triage_and_is_url_safe():
+    url = claude_click_url(TRIAGE, source="snapshots/2026-08-17/rth")
+    assert url.startswith(f"{CLAUDE_NEW}?q=")
+    assert " " not in url and "\n" not in url
+    assert "NBIS" in url
+    assert "options-trading" in url
+    assert "2026-08-17" in url
+
+
+def test_claude_click_url_stays_inside_prompt_limit():
+    url = claude_click_url("LOOK\n" + ("- ticker line\n" * 500))
+    assert len(url) < PROMPT_LIMIT * 4  # percent-encoding inflates, but stays bounded
+
+
+def test_cli_click_target_switches_between_claude_and_issue(tmp_path, monkeypatch):
+    folder = _snapshot(tmp_path)
+    _clean_env(monkeypatch)
+    monkeypatch.setenv("NTFY_TOPIC", "desk-secret")
+    monkeypatch.setenv("DESK_ISSUE_URL", "https://github.test/issues/1")
+    seen = []
+    push = lambda url, data, headers: seen.append(headers.get("Click")) or b"{}"
+
+    main(["--snapshot-dir", str(folder)], push_transport=push)
+    monkeypatch.setenv("DESK_CLICK", "issue")
+    main(["--snapshot-dir", str(folder)], push_transport=push)
+
+    assert seen[0].startswith(CLAUDE_NEW)
+    assert seen[1] == "https://github.test/issues/1"
 
 
 def test_truncate_keeps_body_inside_ntfy_limit():
