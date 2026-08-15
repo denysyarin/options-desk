@@ -8,6 +8,12 @@ from typing import Optional
 
 import pandas as pd
 
+from xtrading.screener.lock_widget import (
+    build_lock_widget,
+    earnings_from_universe,
+    lock_tape_markdown,
+    month_vol_from_universe,
+)
 from xtrading.session import ET, et_date
 
 
@@ -52,6 +58,20 @@ class SnapshotStore:
         universe.to_csv(folder / "universe.csv", index=False)
         (folder / "rv.json").write_text(json.dumps(rv, indent=2, sort_keys=True))
         (folder / "meta.json").write_text(json.dumps(meta, indent=2, default=_json_default))
+        order = None
+        if universe is not None and not universe.empty and "Ticker" in universe.columns:
+            order = [str(t) for t in universe["Ticker"]]
+        payload = build_lock_widget(
+            rv,
+            as_of=d,
+            fetched_at=str(meta.get("fetched_at", "")),
+            earnings=earnings_from_universe(universe),
+            month_vol=month_vol_from_universe(universe),
+            order=order,
+        )
+        lock_text = json.dumps(payload, indent=2) + "\n"
+        (self.root / "lock-widget.json").write_text(lock_text)
+        (self.root / "lock-tape.md").write_text(lock_tape_markdown(payload))
         return folder
 
     def write_premarket(

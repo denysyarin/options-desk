@@ -1,0 +1,50 @@
+{
+  "as_of": "2026-08-14",
+  "fetched_at": "2026-08-15T03:40:25.373060-04:00",
+  "label": "RV",
+  "hot": [
+    {
+      "ticker": "NBIS",
+      "rv": 1.882,
+      "tone": "hot",
+      "earn": false,
+      "month_vol": 1.894
+    },
+    {
+      "ticker": "IREN",
+      "rv": 1.49,
+      "tone": "hot",
+      "earn": true,
+      "month_vol": 1.554
+    },
+    {
+      "ticker": "ONTO",
+      "rv": 1.089,
+      "tone": "mid",
+      "earn": false,
+      "month_vol": 1.135
+    },
+    {
+      "ticker": "SPCX",
+      "rv": 1.04,
+      "tone": "mid",
+      "earn": false,
+      "month_vol": 1.262
+    },
+    {
+      "ticker": "DELL",
+      "rv": 0.86,
+      "tone": "mid",
+      "earn": false,
+      "month_vol": 1.126
+    },
+    {
+      "ticker": "AMZN",
+      "rv": 0.616,
+      "tone": "cold",
+      "earn": false,
+      "month_vol": 0.392
+    }
+  ],
+  "click_url": "https://github.com/denysyarin/options-desk/blob/main/snapshots/lock-tape.md"
+}

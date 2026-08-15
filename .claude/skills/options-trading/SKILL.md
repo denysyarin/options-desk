@@ -36,7 +36,7 @@ Universe is `config/watchlist.txt` (names you are willing to be assigned). Rank 
 2. If `rth/meta.json` `fetched_at` is not **today America/New_York**, the snapshot is stale. Say so. Do not treat it as live.
 3. Also check provenance: overnight/premarket tickers should intersect `config/watchlist.txt`, and RTH `meta.json` should include `chain_mode` (`top5` or `all_watchlist`). Date-fresh alone is not enough if the files were written by a pre-watchlist code path.
 4. Trust Python numbers. Never invent ranks, mids, or strikes. CSV sort is VRP, then annualized RoC, then spread — never raw premium alone.
-5. Gap / who-to-watch lives in `snapshots/*/premarket/snapshot.csv` (9:15 prelayer). Overnight RV lives in the previous session’s `snapshots/*/overnight/rv.json`.
+5. Gap / who-to-watch lives in `snapshots/*/premarket/snapshot.csv` (9:15 prelayer). Overnight RV lives in the previous session’s `snapshots/*/overnight/rv.json`. The lock-screen widget is that RV’s HOT-6 only (`snapshots/lock-widget.json`, two rectangular panes) — not a LOOK list. Tap opens `snapshots/lock-tape.md` in Safari (the table is already written; do not open Claude’s composer). If they then ask for the desk, open today’s `rth/brief.md` and write LOOK/IGNORE.
 6. **Your job is one short triage report** (not a second desk, not an essay). Use `prompts/daily-desk-analyst.md`. Standing GitHub issue is the inbox.
 
 ### Triage output (≤ ~20 lines)
@@ -74,6 +74,10 @@ python -m xtrading.screener rth --force --all-watchlist
 ```
 
 Writes `snapshots/T/rth-full/`. Do not overwrite `rth/`. Do not commit unless asked. Do not comment it on the standing issue. If `.env` / token is absent in *this* runtime: do not ask for the value — say “run that command on the Mac with `.env`, or skip; I will score committed snapshots only.”
+
+### Deferred (do not build unless asked)
+
+Greeks + $200k sleeve on the morning brief is **queued**, not live. Spec: `docs/superpowers/specs/2026-08-15-greeks-sleeve-book-design.md`. Plan: `docs/superpowers/plans/2026-08-15-greeks-sleeve-book.md`. After you tell the human some *other* desk work is done, hard-ping that queue in the same reply. Do not start it in the same turn.
 
 ---
 

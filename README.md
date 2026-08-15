@@ -17,6 +17,8 @@ Universe: `config/watchlist.txt`. Discovery ranking still runs inside that list.
 
 Clock: Cloudflare Worker (`infra/cloudflare-clock`). Muscle: GitHub Actions. Inbox: the standing issue plus an ntfy push.
 
+Lock screen (Scriptable): overnight writes `snapshots/lock-widget.json` — the six loudest 20d RVs — and `snapshots/lock-tape.md` (the table). Two scripts, two rectangular widgets under the clock: `scripts/desk-lock-widget.js` (ranks 1–3) and `scripts/desk-lock-widget-right.js` (ranks 4–6). No on-widget “RV” label. Tap opens the tape in Safari, not the Claude app (iOS keyboard covers Send on a prefilled composer). iOS tints lock-screen widgets, so heat is white opacity, not a color scale. This is **not** a LOOK list; chains do not exist until the 09:30 RTH job.
+
 ```bash
 python -m xtrading.screener overnight --force
 python -m xtrading.screener premarket --force
