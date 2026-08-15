@@ -28,21 +28,26 @@ status: active
 
 Do **not** scrape Finviz from a chat. Python + GitHub Actions already did.
 
+**Never ask the human for `FINVIZ_AUTH_TOKEN`.** Never print it, never put it in chat, never request it as unblocking help. The token lives only in GitHub Actions secrets and the human’s local `.env`. You are not the Finviz client.
+
 Universe is `config/watchlist.txt` (names you are willing to be assigned). Rank still discovers the trade inside that list.
 
 1. Open the latest `snapshots/YYYY-MM-DD/rth/brief.md` (and `ranked.csv`). That is the trade list (top 5 by month vol, then VRP).
 2. If `rth/meta.json` `fetched_at` is not **today America/New_York**, the snapshot is stale. Say so. Do not treat it as live.
-3. Trust Python numbers. Rank is VRP, then annualized RoC, then spread — never raw premium.
-4. Gap / who-to-watch lives in `snapshots/*/premarket/snapshot.csv` (9:15 prelayer). Overnight RV lives in the previous session’s `snapshots/*/overnight/rv.json`.
-5. Optional narrative: `prompts/daily-desk-analyst.md`. The standing GitHub issue is the inbox.
+3. Also check provenance: overnight/premarket tickers should intersect `config/watchlist.txt`, and RTH `meta.json` should include `chain_mode` (`top5` or `all_watchlist`). Date-fresh alone is not enough if the files were written by a pre-watchlist code path.
+4. Trust Python numbers. Rank is VRP, then annualized RoC, then spread — never raw premium.
+5. Gap / who-to-watch lives in `snapshots/*/premarket/snapshot.csv` (9:15 prelayer). Overnight RV lives in the previous session’s `snapshots/*/overnight/rv.json`.
+6. Optional narrative: `prompts/daily-desk-analyst.md`. The standing GitHub issue is the inbox.
 
-If the human asks to dump / chain / rank the **full watchlist**:
+**If snapshots are missing or stale (phone / web / container):** do not ask for a token. Tell the human to either (a) open GitHub Actions and `workflow_dispatch` `overnight` / `premarket` / `rth` with `force=true`, or (b) wait for the weekday clock. Then analyze whatever brief lands in git / the standing issue.
+
+**If the human asks to dump / chain / rank the full watchlist** and you are on a machine that already has `.env` with the token (presence only — never echo it):
 
 ```bash
 python -m xtrading.screener rth --force --all-watchlist
 ```
 
-Writes `snapshots/T/rth-full/`. Do not overwrite `rth/`. Do not commit unless asked. Do not comment it on the standing issue. Still never scrape Finviz HTML from chat. Never print `FINVIZ_AUTH_TOKEN`. If the token is missing, say so and stop.
+Writes `snapshots/T/rth-full/`. Do not overwrite `rth/`. Do not commit unless asked. Do not comment it on the standing issue. If `.env` / token is absent in *this* runtime: do not ask for the value — say “run that command on the Mac with `.env`, or skip; I will score committed snapshots only.”
 
 ---
 

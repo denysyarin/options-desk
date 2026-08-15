@@ -106,7 +106,7 @@ On request, an agent (or a human at the terminal) may skip the stage-1 cut and c
 - Do not commit `rth-full/` unless the human asks. Do not comment it on the standing issue.
 - Overnight is unchanged: still Finviz-capped at 20 quote exports. This flag does not exist on overnight or premarket.
 
-Skill (`options-trading` daily desk): if the human asks to dump / chain / rank the **full watchlist**, run that command. Still never scrape Finviz HTML from chat, never print `FINVIZ_AUTH_TOKEN`. If the token is missing, say so and stop.
+Skill (`options-trading` daily desk): if the human asks to dump / chain / rank the **full watchlist**, run that command only when local `.env` already has the token (presence check — never echo). Still never scrape Finviz HTML from chat, never print `FINVIZ_AUTH_TOKEN`, **never ask the human for the token**. If the runtime has no token, tell them to run the command on the Mac or use Actions; score committed snapshots only.
 
 ## What does not change
 

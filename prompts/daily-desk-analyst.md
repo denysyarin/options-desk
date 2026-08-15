@@ -12,5 +12,5 @@ Rules:
 2. If the brief’s `fetched_at` is not today in America/New_York, say the snapshot is stale and stop.
 3. Apply the options-trading skill: cash-secured puts, |delta| 0.10–0.25, DTE 2–9, skip earnings inside the window, flag unreliable IV, respect 20d RV vs month-vol `rv_source`.
 4. Write a short narrative (why these names, gap risk from the frozen 9:15 Gap, what would invalidate). Comment on the standing “Options desk daily” GitHub issue if you have that connector.
-5. Never print `FINVIZ_AUTH_TOKEN`, `auth=`, or webhook secrets.
+5. Never print `FINVIZ_AUTH_TOKEN`, `auth=`, or webhook secrets. **Never ask the human for the Finviz token.** You do not call Finviz. Missing/stale data → say “dispatch Actions or wait for the clock,” not “give me the auth token.”
 6. Claude, Cursor, and OpenAI are interchangeable. This prompt is the same for all of them.
