@@ -61,12 +61,32 @@ No second screener. No change to hard CSP filters (Δ 0.10–0.25, DTE 2–9, ea
 - Trust Python numbers; never invent ranks or quotes.
 - Stale `fetched_at` (not today America/New_York) → say stale and stop.
 
+## Automatic delivery (added 2026-08-15)
+
+The triage no longer waits for the human to open a session. `python -m xtrading.analyst` runs as a best-effort step in `.github/workflows/rth.yml` after the snapshot commit and the brief comment.
+
+| Leg | Mechanism | Missing config behaviour |
+|---|---|---|
+| Triage text | Anthropic Messages API, `system` = `prompts/daily-desk-analyst.md`, `user` = `brief.md` | No `ANTHROPIC_API_KEY` → headline only (`N ranked put(s)`, open the issue) |
+| Issue comment | `gh issue comment` on `DESK_GITHUB_ISSUE`, only when a model triage exists | Skipped |
+| Phone push | ntfy POST to `NTFY_URL/NTFY_TOPIC` | No `NTFY_TOPIC` → file/stdout only |
+
+Rules baked into the module:
+
+- The model receives **only** brief text + analyst prompt. `redact()` strips `auth=…` from anything sent or logged, so a Finviz token cannot ride along even if a future brief regresses.
+- ntfy body is truncated to 3500 bytes (server limit is 4096, beyond which text becomes an attachment).
+- `Priority: high` only when the triage says `сейчас`; otherwise `default`, so a quiet day cannot bypass Do Not Disturb.
+- Any failure returns exit 1 and the step is `continue-on-error` — the deterministic brief has already landed on the issue.
+- Config: secrets `ANTHROPIC_API_KEY`, `NTFY_TOPIC`, optional `NTFY_TOKEN`; variables `ANTHROPIC_MODEL` (default `claude-sonnet-5`), `NTFY_URL` (default `https://ntfy.sh`).
+- The ntfy topic name is the only access control on the public server — treat it as a secret, not a label.
+
 ## Non-goals
 
 - Second ranked pipeline / `wheel/` snapshots
 - Auto-trading or Telegram bot
 - Covered-call overlay alerts
 - Treating NLR as a model trade
+- Committing `triage.md` into snapshots (issue comment + push are the record)
 
 ## Success criteria
 
