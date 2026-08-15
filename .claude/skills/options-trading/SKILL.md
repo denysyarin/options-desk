@@ -41,21 +41,23 @@ Universe is `config/watchlist.txt` (names you are willing to be assigned). Rank 
 
 ### Triage output (≤ ~20 lines)
 
-Bilingual OK: English headers; RU words like `страйк` / `сейчас` fine.
+**English only** — no Russian, even though the trade sheets use it.
 
 ```
 # Desk triage — YYYY-MM-DD
 
 LOOK
-- Sell 1 Put TICKER DD.MM страйк K по ~mid | basis ~B | RoC ~R | why one line
+- Sell 1 Put TICKER exp DD.MM strike K at ~mid | basis ~B | RoC ~R | why one line
 
 IGNORE
 - ticker/reason one line (or “all ranked — weak premium / negative VRP / …”)
 
-сейчас on LOOK #1   — or —   Nothing urgent
+ACT NOW on LOOK #1   — or —   Nothing urgent
 
 Not advice. Numbers from Python brief only.
 ```
+
+`ACT NOW` is the only urgency phrase and it raises the phone push priority; write `Nothing urgent` on a quiet tape.
 
 **LOOK may re-prioritize** vs CSV order using wheel criteria already in the brief: **premium size (`mid`)**, **basis (`strike − mid`)**, **annualized RoC**, assignment comfort. Do **not** require positive VRP for LOOK. Empty LOOK is valid when the mechanical list is weak.
 

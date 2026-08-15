@@ -7,7 +7,7 @@ from urllib.request import Request, urlopen
 NTFY_LIMIT = 4096  # bytes; longer bodies become attachments instead of text
 BODY_LIMIT = 3500  # leave room for headers and multibyte tickers
 TIMEOUT_S = 20
-URGENT_MARKERS = ("сейчас", "urgent now")
+URGENT_MARKERS = ("act now",)  # not "urgent": the quiet line reads "Nothing urgent"
 
 Transport = Callable[[str, bytes, dict], bytes]
 

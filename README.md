@@ -37,7 +37,7 @@ python -m xtrading.analyst --snapshot-dir snapshots/$(date +%F)/rth   # triage +
 | `NTFY_URL` | repo variable | Default `https://ntfy.sh` |
 | `NTFY_TOKEN` | repo secret | Only for protected topics or a self-hosted server |
 
-Install the ntfy iOS app, subscribe to the same topic, and the triage arrives as a push. `сейчас` in the triage raises priority; otherwise it stays a normal notification.
+Install the ntfy iOS app, subscribe to the same topic, and the triage arrives as a push. The triage is English-only; `ACT NOW` in it raises priority, otherwise it stays a normal notification.
 
 Setup once: repo secret `FINVIZ_AUTH_TOKEN`, variable `DESK_GITHUB_ISSUE`, Worker secrets, watch the issue on your phone. Specs: `docs/superpowers/specs/2026-08-14-premarket-prelayer-design.md`, `docs/superpowers/specs/2026-08-14-watchlist-universe-design.md`, `docs/superpowers/specs/2026-08-15-one-claude-triage-design.md`.
 

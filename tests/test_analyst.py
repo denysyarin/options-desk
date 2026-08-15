@@ -30,7 +30,7 @@ As of 2026-08-17T09:30:00-04:00 (America/New_York).
 TRIAGE = """# Desk triage — 2026-08-17
 
 LOOK
-- Sell 1 Put NBIS 21.08 страйк 205 по ~2.10 | basis ~202.90 | RoC ~0.62
+- Sell 1 Put NBIS exp 21.08 strike 205 at ~2.10 | basis ~202.90 | RoC ~0.62
 
 IGNORE
 - rest of the table — pennies
@@ -124,11 +124,27 @@ def test_build_push_titles_by_date_and_stays_plain_priority():
     assert headers["Markdown"] == "yes"
 
 
-def test_build_push_raises_priority_when_triage_says_now():
-    urgent = TRIAGE.replace("Nothing urgent", "сейчас on LOOK #1")
+def test_build_push_raises_priority_when_triage_says_act_now():
+    urgent = TRIAGE.replace("Nothing urgent", "ACT NOW on LOOK #1")
     _, headers = build_push(urgent, date="2026-08-17", click=None)
     assert headers["Priority"] == "high"
     assert "Click" not in headers
+
+
+def test_nothing_urgent_stays_default_priority():
+    """The quiet line contains "urgent" — it must not be read as a wake-up."""
+    _, headers = build_push(TRIAGE, date="2026-08-17", click=None)
+    assert headers["Priority"] == "default"
+
+
+def test_triage_templates_are_english_only():
+    cyrillic = [
+        (path, line)
+        for path in ("prompts/daily-desk-analyst.md", ".claude/skills/options-trading/SKILL.md")
+        for line in open(path, encoding="utf-8").read().splitlines()
+        if any("\u0400" <= ch <= "\u04ff" for ch in line)
+    ]
+    assert cyrillic == []
 
 
 def test_truncate_keeps_body_inside_ntfy_limit():

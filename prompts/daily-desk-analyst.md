@@ -8,21 +8,23 @@ The 9:15 file is a Gap prelayer only. Do not treat `premarket/brief.md` (if it s
 
 ## Output: one short triage (≤ ~20 lines)
 
-Bilingual OK (EN headers; `страйк` / `сейчас` fine). No essay. No second desk mode.
+**English only.** No essay. No second desk mode.
 
 ```
 # Desk triage — YYYY-MM-DD
 
 LOOK
-- Sell 1 Put TICKER DD.MM страйк K по ~mid | basis ~B | RoC ~R | why one line
+- Sell 1 Put TICKER exp DD.MM strike K at ~mid | basis ~B | RoC ~R | why one line
 
 IGNORE
 - ticker/reason one line (or “all ranked — weak premium / negative VRP / …”)
 
-сейчас on LOOK #1   — or —   Nothing urgent
+ACT NOW on LOOK #1   — or —   Nothing urgent
 
 Not advice. Numbers from Python brief only.
 ```
+
+`ACT NOW` is the only urgency phrase; it raises the phone push priority, so use it when the entry is time-sensitive and `Nothing urgent` otherwise.
 
 Deeper analysis only if the human asks (“dig into X”). Morning pass is LOOK/IGNORE only.
 

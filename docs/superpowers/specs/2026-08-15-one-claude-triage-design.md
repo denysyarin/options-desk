@@ -15,7 +15,7 @@ After the existing Python RTH package lands, **one short Claude report** triages
 | Modes | One pipeline only (`overnight` → `premarket` → `rth`) |
 | Author | Claude via `.claude/skills/options-trading` + `prompts/daily-desk-analyst.md` |
 | Length | ≤ ~20 lines; LOOK / IGNORE / urgency; no essay |
-| Language | Bilingual one-liners: English section headers; RU trading words OK (`страйк`, `сейчас`) |
+| Language | English only. The trade sheets are Russian; the desk output is not |
 | Delivery | Python `brief.md` → standing GitHub issue (unchanged). Claude triage via skill / optional analyst webhook → same issue or chat. No Telegram bot in v1. |
 | NLR | Removed from `config/watchlist.txt` (deep-ITM hope puts are an anti-pattern) |
 | Deeper analysis | On human request only (“dig into NBIS 205”) |
@@ -36,12 +36,12 @@ Python still ranks the CSP table by **VRP → annualized RoC → spread**. Claud
 # Desk triage — YYYY-MM-DD
 
 LOOK
-- Sell 1 Put TICKER DD.MM страйк K по ~mid | basis ~B | RoC ~R | why one line
+- Sell 1 Put TICKER exp DD.MM strike K at ~mid | basis ~B | RoC ~R | why one line
 
 IGNORE
 - ticker/reason one line each (or “all ranked — weak premium / negative VRP / …”)
 
-сейчас on LOOK #1   — or —   Nothing urgent
+ACT NOW on LOOK #1   — or —   Nothing urgent
 
 Not advice. Numbers from Python brief only.
 ```
@@ -75,7 +75,7 @@ Rules baked into the module:
 
 - The model receives **only** brief text + analyst prompt. `redact()` strips `auth=…` from anything sent or logged, so a Finviz token cannot ride along even if a future brief regresses.
 - ntfy body is truncated to 3500 bytes (server limit is 4096, beyond which text becomes an attachment).
-- `Priority: high` only when the triage says `сейчас`; otherwise `default`, so a quiet day cannot bypass Do Not Disturb.
+- `Priority: high` only when the triage says `ACT NOW`; otherwise `default`, so a quiet day cannot bypass Do Not Disturb. The marker deliberately excludes the word `urgent`, since the quiet line reads `Nothing urgent`.
 - Any failure returns exit 1 and the step is `continue-on-error` — the deterministic brief has already landed on the issue.
 - Config: secrets `ANTHROPIC_API_KEY`, `NTFY_TOPIC`, optional `NTFY_TOKEN`; variables `ANTHROPIC_MODEL` (default `claude-sonnet-5`), `NTFY_URL` (default `https://ntfy.sh`).
 - The ntfy topic name is the only access control on the public server — treat it as a secret, not a label.
