@@ -40,7 +40,7 @@ python -m xtrading.analyst --snapshot-dir snapshots/$(date +%F)/rth   # triage +
 
 Install the ntfy iOS app, subscribe to the same topic, and the triage arrives as a push. The triage is English-only; `ACT NOW` in it raises priority, otherwise it stays a normal notification.
 
-Tapping the push opens `https://claude.ai/new?q=…` — a universal link, so iOS hands it to the Claude app with the triage already in the composer and a request to judge the best entry. That is where you ask for the deeper analysis.
+Tapping the push opens `https://claude.ai/code/new?q=…&repo=denysyarin/options-desk` — the Claude **Code** tab in the browser (Safari / Claude web on iPhone is enough; the mobile app is not required). The triage is prefilled so you can send and dig in.
 
 Setup once: repo secret `FINVIZ_AUTH_TOKEN`, variable `DESK_GITHUB_ISSUE`, Worker secrets, watch the issue on your phone. Specs: `docs/superpowers/specs/2026-08-14-premarket-prelayer-design.md`, `docs/superpowers/specs/2026-08-14-watchlist-universe-design.md`, `docs/superpowers/specs/2026-08-15-one-claude-triage-design.md`.
 

@@ -5,7 +5,7 @@ import pytest
 
 from xtrading.analyst.__main__ import main
 from xtrading.analyst.notify import (
-    CLAUDE_NEW,
+    CLAUDE_CODE_NEW,
     NTFY_LIMIT,
     PROMPT_LIMIT,
     build_push,
@@ -152,7 +152,9 @@ def test_triage_templates_are_english_only():
 
 def test_claude_click_url_prefills_the_triage_and_is_url_safe():
     url = claude_click_url(TRIAGE, source="snapshots/2026-08-17/rth")
-    assert url.startswith(f"{CLAUDE_NEW}?q=")
+    assert url.startswith(f"{CLAUDE_CODE_NEW}?")
+    assert "repo=denysyarin%2Foptions-desk" in url or "repo=denysyarin/options-desk" in url
+    assert "/new?" not in url.replace("/code/new?", "")
     assert " " not in url and "\n" not in url
     assert "NBIS" in url
     assert "options-trading" in url
@@ -176,7 +178,7 @@ def test_cli_click_target_switches_between_claude_and_issue(tmp_path, monkeypatc
     monkeypatch.setenv("DESK_CLICK", "issue")
     main(["--snapshot-dir", str(folder)], push_transport=push)
 
-    assert seen[0].startswith(CLAUDE_NEW)
+    assert seen[0].startswith(CLAUDE_CODE_NEW)
     assert seen[1] == "https://github.test/issues/1"
 
 

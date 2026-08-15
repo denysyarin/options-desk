@@ -70,7 +70,7 @@ The triage no longer waits for the human to open a session. `python -m xtrading.
 | Triage text | Anthropic Messages API, `system` = `prompts/daily-desk-analyst.md`, `user` = `brief.md` | No `ANTHROPIC_API_KEY` → headline only (`N ranked put(s)`, open the issue) |
 | Issue comment | `gh issue comment` on `DESK_GITHUB_ISSUE`, only when a model triage exists | Skipped |
 | Phone push | ntfy POST to `NTFY_URL/NTFY_TOPIC` | No `NTFY_TOPIC` → file/stdout only |
-| Push tap target | `https://claude.ai/new?q=<triage + ask>` universal link, so iOS opens the Claude app ready to go deeper | `DESK_CLICK=issue` falls back to the GitHub issue |
+| Push tap target | `https://claude.ai/code/new?q=<triage>&repo=denysyarin/options-desk` — Claude Code tab in the browser (iPhone web is enough) | `DESK_CLICK=issue` falls back to the GitHub issue |
 
 Rules baked into the module:
 

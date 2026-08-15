@@ -9,8 +9,10 @@ NTFY_LIMIT = 4096  # bytes; longer bodies become attachments instead of text
 BODY_LIMIT = 3500  # leave room for headers and multibyte tickers
 TIMEOUT_S = 20
 URGENT_MARKERS = ("act now",)  # not "urgent": the quiet line reads "Nothing urgent"
-# Universal link: iOS opens the Claude app when installed, the web app otherwise.
-CLAUDE_NEW = "https://claude.ai/new"
+# Web Code-tab link. Works in Safari / Claude web on iPhone; no mobile-app
+# requirement. The chat URL (claude.ai/new) is the wrong surface.
+CLAUDE_CODE_NEW = "https://claude.ai/code/new"
+DEFAULT_REPO = "denysyarin/options-desk"
 PROMPT_LIMIT = 3000
 
 Transport = Callable[[str, bytes, dict], bytes]
@@ -23,8 +25,13 @@ def truncate(text: str, limit: int = BODY_LIMIT) -> str:
     return encoded[: limit - 3].decode(errors="ignore") + "…"
 
 
-def claude_click_url(triage: str, *, source: str | None = None) -> str:
-    """Tapping the push should continue the desk conversation, not open GitHub."""
+def claude_click_url(
+    triage: str,
+    *,
+    source: str | None = None,
+    repo: str = DEFAULT_REPO,
+) -> str:
+    """Tapping the push opens the Claude Code tab (web), not a regular chat."""
     prompt = (
         "Options desk triage below. Python already computed the ranks, so treat the "
         "numbers as given.\n\n"
@@ -34,7 +41,8 @@ def claude_click_url(triage: str, *, source: str | None = None) -> str:
     )
     if source:
         prompt += f"\n\nSource: {source}"
-    return f"{CLAUDE_NEW}?{urlencode({'q': truncate(prompt, PROMPT_LIMIT)})}"
+    params = {"q": truncate(prompt, PROMPT_LIMIT), "repo": repo}
+    return f"{CLAUDE_CODE_NEW}?{urlencode(params)}"
 
 
 def build_push(triage: str, *, date: str, click: str | None) -> tuple[str, dict]:
