@@ -1,0 +1,30 @@
+{
+  "fetched_at": "2026-08-10T16:30:00-04:00",
+  "job": "overnight",
+  "tickers": [
+    "NBIS",
+    "IREN",
+    "SPCX",
+    "ONTO",
+    "DELL",
+    "Q",
+    "AVGO",
+    "HLIO",
+    "SNPS",
+    "NVDA",
+    "NLR",
+    "MSFT",
+    "GOOG",
+    "AMZN",
+    "MMM",
+    "APD",
+    "AAPL",
+    "MCD",
+    "GLD",
+    "SPY"
+  ],
+  "n_export_calls": 21,
+  "empty_universe": false,
+  "errors": [],
+  "rv_source": "quote_20d"
+}
