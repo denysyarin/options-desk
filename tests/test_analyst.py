@@ -11,6 +11,7 @@ from xtrading.analyst.notify import (
     truncate,
 )
 from xtrading.analyst.triage import (
+    DEFAULT_MODEL,
     build_request,
     count_candidates,
     extract_text,
@@ -196,6 +197,31 @@ def test_cli_skips_push_when_no_topic_and_when_brief_missing(tmp_path, monkeypat
     assert main(["--snapshot-dir", str(folder)], push_transport=push) == 0
     assert main(["--snapshot-dir", str(tmp_path / "nope")], push_transport=push) == 0
     assert pushes == []
+
+
+def test_cli_treats_blank_actions_variables_as_unset(tmp_path, monkeypatch):
+    """Unset repo variables arrive as "" and must not become model="" or a bare path."""
+    folder = _snapshot(tmp_path)
+    _clean_env(monkeypatch)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    monkeypatch.setenv("ANTHROPIC_MODEL", "")
+    monkeypatch.setenv("NTFY_URL", "")
+    monkeypatch.setenv("NTFY_TOPIC", "desk-secret")
+    sent = {}
+    pushes = []
+
+    def llm(url, data, headers):
+        sent.update(json.loads(data.decode()))
+        return json.dumps({"content": [{"type": "text", "text": TRIAGE}]}).encode()
+
+    rc = main(
+        ["--snapshot-dir", str(folder)],
+        llm_transport=llm,
+        push_transport=lambda url, data, headers: pushes.append(url) or b"{}",
+    )
+    assert rc == 0
+    assert sent["model"] == DEFAULT_MODEL
+    assert pushes == ["https://ntfy.sh/desk-secret"]
 
 
 def test_cli_reports_failure_when_model_call_raises(tmp_path, monkeypatch):

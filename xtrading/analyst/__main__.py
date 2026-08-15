@@ -23,6 +23,11 @@ DEFAULT_PROMPT = "prompts/daily-desk-analyst.md"
 DEFAULT_NTFY_URL = "https://ntfy.sh"
 
 
+def env_or(name: str, default: str) -> str:
+    """Actions exports unset repo variables as empty strings, not absent keys."""
+    return os.environ.get(name, "").strip() or default
+
+
 def _topic_url(base: str, topic: str) -> str:
     if topic.startswith("http://") or topic.startswith("https://"):
         return topic
@@ -46,7 +51,7 @@ def main(argv: list[str] | None = None, *, llm_transport=None, push_transport=No
 
     topic = os.environ.get("NTFY_TOPIC", "").strip()
     topic_url = (
-        _topic_url(os.environ.get("NTFY_URL", DEFAULT_NTFY_URL), topic)
+        _topic_url(env_or("NTFY_URL", DEFAULT_NTFY_URL), topic)
         if topic and not args.no_push
         else ""
     )
@@ -55,14 +60,12 @@ def main(argv: list[str] | None = None, *, llm_transport=None, push_transport=No
     api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     if api_key:
         try:
-            instructions = Path(
-                os.environ.get("ANALYST_PROMPT", DEFAULT_PROMPT)
-            ).read_text()
+            instructions = Path(env_or("ANALYST_PROMPT", DEFAULT_PROMPT)).read_text()
             triage = request_triage(
                 brief=brief,
                 instructions=instructions,
                 api_key=api_key,
-                model=os.environ.get("ANTHROPIC_MODEL", DEFAULT_MODEL),
+                model=env_or("ANTHROPIC_MODEL", DEFAULT_MODEL),
                 transport=llm_transport,
             )
         except Exception as exc:  # best effort: the brief is already on the issue

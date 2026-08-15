@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import re
 from typing import Callable
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 API_URL = "https://api.anthropic.com/v1/messages"
@@ -74,8 +75,13 @@ def extract_text(body: dict) -> str:
 
 def _urlopen_transport(url: str, data: bytes, headers: dict) -> bytes:
     req = Request(url, data=data, headers=headers, method="POST")
-    with urlopen(req, timeout=TIMEOUT_S) as resp:
-        return resp.read()
+    try:
+        with urlopen(req, timeout=TIMEOUT_S) as resp:
+            return resp.read()
+    except HTTPError as exc:
+        # The status alone hides which field the API rejected.
+        detail = exc.read().decode(errors="replace")[:400]
+        raise ValueError(f"HTTP {exc.code} from {url}: {detail}") from None
 
 
 def request_triage(
