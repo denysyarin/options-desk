@@ -153,9 +153,12 @@ def test_triage_templates_are_english_only():
 def test_claude_click_url_prefills_the_triage_and_is_url_safe():
     url = claude_click_url(TRIAGE, source="snapshots/2026-08-17/rth")
     assert url.startswith(f"{CLAUDE_CODE_NEW}?")
-    assert "repo=denysyarin%2Foptions-desk" in url or "repo=denysyarin/options-desk" in url
+    assert "repo=denysyarin%2Foptions-desk" in url
     assert "/new?" not in url.replace("/code/new?", "")
     assert " " not in url and "\n" not in url
+    assert "+" not in url.split("?", 1)[1].replace("%2B", "")
+    assert "%20" in url
+    assert "%23" in url  # markdown "#" must not start a URL fragment
     assert "NBIS" in url
     assert "options-trading" in url
     assert "2026-08-17" in url

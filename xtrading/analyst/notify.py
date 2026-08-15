@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from typing import Callable
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
 NTFY_LIMIT = 4096  # bytes; longer bodies become attachments instead of text
@@ -42,7 +42,8 @@ def claude_click_url(
     if source:
         prompt += f"\n\nSource: {source}"
     params = {"q": truncate(prompt, PROMPT_LIMIT), "repo": repo}
-    return f"{CLAUDE_CODE_NEW}?{urlencode(params)}"
+    # quote (not quote_plus): Claude's q= treats "+" as a literal plus, not a space.
+    return f"{CLAUDE_CODE_NEW}?{urlencode(params, quote_via=quote)}"
 
 
 def build_push(triage: str, *, date: str, click: str | None) -> tuple[str, dict]:
