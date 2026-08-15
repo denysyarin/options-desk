@@ -169,7 +169,12 @@ def format_plan(plan: FetchPlan) -> str:
     return "\n".join(lines)
 
 
-def hard_filter_rows(df: pd.DataFrame, *, today: date) -> pd.DataFrame:
+def hard_filter_rows(
+    df: pd.DataFrame,
+    *,
+    today: date,
+    max_quote_age: Optional[timedelta] = ASSUMPTIONS["max_quote_age"],
+) -> pd.DataFrame:
     if df.empty:
         return df.copy()
     rows = []
@@ -189,9 +194,10 @@ def hard_filter_rows(df: pd.DataFrame, *, today: date) -> pd.DataFrame:
         spread = (row["ask"] - row["bid"]) / mid
         if spread > ASSUMPTIONS["max_spread"]:
             continue
-        age = row.get("quote_age")
-        if age is None or pd.isna(age) or age > ASSUMPTIONS["max_quote_age"]:
-            continue
+        if max_quote_age is not None:
+            age = row.get("quote_age")
+            if age is None or pd.isna(age) or age > max_quote_age:
+                continue
         abs_delta = abs(float(row["delta"]))
         if not (ASSUMPTIONS["min_abs_delta"] <= abs_delta <= ASSUMPTIONS["max_abs_delta"]):
             continue
@@ -459,7 +465,11 @@ class PutPremiumScreener:
                     "iv_unreliable": bool(row.get("iv_unreliable", False)),
                 })
 
-        kept = hard_filter_rows(pd.DataFrame(candidates), today=today)
+        # RTH fetches with enforce_stale=False; do not re-kill on quote_age here
+        # (weekend drills and early cash-open tapes would otherwise always wipe).
+        kept = hard_filter_rows(
+            pd.DataFrame(candidates), today=today, max_quote_age=None,
+        )
         ranked = rank_rows(kept)
         print(format_table(ranked))
         return ranked

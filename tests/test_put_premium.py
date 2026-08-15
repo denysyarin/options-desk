@@ -180,6 +180,14 @@ def test_hard_filters_drop_low_oi_or_volume_wide_spread_stale_and_delta():
     assert list(kept["ticker"]) == ["TST"]
 
 
+def test_hard_filter_skips_quote_age_when_max_quote_age_is_none():
+    stale = _row_from_quote(_quote(quote_age=timedelta(hours=18), ticker="OLD"), delta=-0.18)
+    kept = hard_filter_rows(
+        pd.DataFrame([stale]), today=TODAY, max_quote_age=None,
+    )
+    assert list(kept["ticker"]) == ["OLD"]
+
+
 def test_rank_is_vrp_then_roc_then_spread_never_raw_premium():
     # High premium, low VRP must lose to low premium, high VRP
     rich = dict(
