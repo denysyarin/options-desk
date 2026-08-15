@@ -1,6 +1,6 @@
 # Options desk brief
 
-As of 2026-08-15T05:11:15.093034-04:00 (America/New_York).
+As of 2026-08-15T05:12:57.230644-04:00 (America/New_York).
 RV source: `quote_20d`.
 
 Not financial advice. Cash is open. Chains are live. Gap is frozen from the 9:15 prelayer.
