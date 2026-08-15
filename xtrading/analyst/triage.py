@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from typing import Callable
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
@@ -14,7 +15,9 @@ from urllib.request import Request, urlopen
 API_URL = "https://api.anthropic.com/v1/messages"
 API_VERSION = "2023-06-01"
 DEFAULT_MODEL = "claude-sonnet-5"
-DEFAULT_MAX_TOKENS = 700
+# The triage itself is ~150 tokens, but reasoning tokens share this budget and
+# starved it at 700 — the first live run was cut off mid-word.
+DEFAULT_MAX_TOKENS = 2000
 TIMEOUT_S = 60
 
 _AUTH_VALUE = re.compile(r"(auth=)[^\s&\"']+", re.IGNORECASE)
@@ -103,4 +106,10 @@ def request_triage(
     }
     send = transport or _urlopen_transport
     raw = send(API_URL, json.dumps(payload).encode(), headers)
-    return redact(extract_text(json.loads(raw.decode())))
+    body = json.loads(raw.decode())
+    if body.get("stop_reason") == "max_tokens":
+        print(
+            f"warning: triage hit max_tokens={max_tokens} and is truncated",
+            file=sys.stderr,
+        )
+    return redact(extract_text(body))

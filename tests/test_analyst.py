@@ -46,10 +46,10 @@ def test_build_request_carries_brief_instructions_and_model():
         brief=BRIEF,
         instructions="Write LOOK / IGNORE only.",
         model="claude-sonnet-5",
-        max_tokens=700,
+        max_tokens=1500,
     )
     assert payload["model"] == "claude-sonnet-5"
-    assert payload["max_tokens"] == 700
+    assert payload["max_tokens"] == 1500
     assert "LOOK" in payload["system"]
     user_text = payload["messages"][0]["content"]
     assert "NBIS" in user_text
@@ -95,6 +95,24 @@ def test_request_triage_sends_api_headers_and_returns_text(monkeypatch):
     assert seen["headers"]["x-api-key"] == "sk-test"
     assert seen["headers"]["anthropic-version"]
     assert b"must-never-leave" not in seen["data"]
+
+
+def test_request_triage_warns_when_response_is_truncated(capsys):
+    def transport(url, data, headers):
+        return json.dumps(
+            {"content": [{"type": "text", "text": "# Desk triage\n\nLOOK\n- NBIS 205 basi"}],
+             "stop_reason": "max_tokens"}
+        ).encode()
+
+    text = request_triage(
+        brief=BRIEF, instructions="x", api_key="sk-test", transport=transport
+    )
+    assert "NBIS" in text
+    assert "truncated" in capsys.readouterr().err
+
+
+def test_default_max_tokens_leaves_room_for_reasoning():
+    assert build_request(brief=BRIEF, instructions="x")["max_tokens"] >= 1500
 
 
 def test_build_push_titles_by_date_and_stays_plain_priority():
