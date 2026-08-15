@@ -15,7 +15,7 @@ Every weekday:
 
 Universe: `config/watchlist.txt`. Discovery ranking still runs inside that list.
 
-Clock: Cloudflare Worker (`infra/cloudflare-clock`). Muscle: GitHub Actions. Inbox: that issue. Analyst webhook is optional (`ANALYST_WEBHOOK_URL`) and fires after the **RTH** commit.
+Clock: Cloudflare Worker (`infra/cloudflare-clock`). Muscle: GitHub Actions. Inbox: the standing issue plus an ntfy push.
 
 ```bash
 python -m xtrading.screener overnight --force
@@ -36,7 +36,7 @@ python -m xtrading.analyst --snapshot-dir snapshots/$(date +%F)/rth   # triage +
 | `NTFY_TOPIC` | repo secret | On the public server the topic name **is** the password — use something unguessable |
 | `NTFY_URL` | repo variable | Default `https://ntfy.sh` |
 | `NTFY_TOKEN` | repo secret | Only for protected topics or a self-hosted server |
-| `DESK_CLICK` | repo variable | `claude` (default) opens the Claude app with the triage prefilled; `issue` opens the GitHub issue |
+| `DESK_CLICK` | repo variable | `claude` (default) opens the Code tab with the triage prefilled; `issue` opens the GitHub issue |
 
 Install the ntfy iOS app, subscribe to the same topic, and the triage arrives as a push. The triage is English-only; `ACT NOW` in it raises priority, otherwise it stays a normal notification.
 

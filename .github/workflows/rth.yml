@@ -92,22 +92,3 @@ jobs:
           if [ -n "$ANTHROPIC_API_KEY" ] && [ -n "$DESK_GITHUB_ISSUE" ] && [ -s /tmp/triage.md ]; then
             gh issue comment "$DESK_GITHUB_ISSUE" --body-file /tmp/triage.md
           fi
-      - name: Fire analyst webhook
-        continue-on-error: true
-        env:
-          ANALYST_WEBHOOK_URL: ${{ secrets.ANALYST_WEBHOOK_URL }}
-          ANALYST_WEBHOOK_TOKEN: ${{ secrets.ANALYST_WEBHOOK_TOKEN }}
-        run: |
-          if [ -z "$ANALYST_WEBHOOK_URL" ]; then
-            echo "no analyst webhook configured"
-            exit 0
-          fi
-          DAY=$(ls -1 snapshots | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' | tail -1)
-          BRIEF=$(cat "snapshots/${DAY}/rth/brief.md")
-          jq -n --arg date "$DAY" --arg brief "$BRIEF" \
-            '{date:$date, brief:$brief, snapshot_dir:("snapshots/"+$date+"/rth")}' \
-            > /tmp/analyst.json
-          curl -sS -X POST "$ANALYST_WEBHOOK_URL" \
-            -H "Authorization: Bearer $ANALYST_WEBHOOK_TOKEN" \
-            -H "Content-Type: application/json" \
-            --data @/tmp/analyst.json
