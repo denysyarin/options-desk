@@ -1,0 +1,16 @@
+{
+  "fetched_at": "2026-08-11T09:30:00-04:00",
+  "job": "rth",
+  "rv_from": "2026-08-10",
+  "rv_source": "quote_20d",
+  "empty_universe": false,
+  "errors": [],
+  "n_export_calls": 0,
+  "prelayer": "none",
+  "chain_mode": "historical_rehearsal",
+  "chain_source": "dolthub post-no-preference/options",
+  "deviations": [
+    "DTE 17 (dataset has no Aug 14 weekly; production window is 2-9)",
+    "open interest / volume gates not applied (columns absent)"
+  ]
+}
