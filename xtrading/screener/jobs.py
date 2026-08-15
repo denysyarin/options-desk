@@ -5,6 +5,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable
 
+import pandas as pd
+
 from xtrading.screener.brief import format_brief
 from xtrading.screener.put_premium import (
     PREMARKET_COLUMNS,
@@ -18,9 +20,9 @@ from xtrading.screener.put_premium import (
 from xtrading.screener.snapshots import SnapshotStore
 from xtrading.session import et_date, job_for
 
-DEFAULT_FILTERS = "sh_opt_option,sh_avgvol_o400,sh_price_o10"
-OVERNIGHT_TOP_N = 20
-RTH_CHAIN_N = 3
+DEFAULT_FILTERS = "sh_opt_option"
+OVERNIGHT_TOP_N = 20  # Finviz /export/quote 60s budget, not a product cap
+RTH_CHAIN_N = 5
 
 
 class SessionSkip(RuntimeError):
@@ -42,6 +44,10 @@ def _retry_once(fn):
         return fn()
 
 
+def _empty_watchlist(tickers: list[str] | None) -> bool:
+    return tickers is not None and len(tickers) == 0
+
+
 def run_overnight(
     provider,
     *,
@@ -50,31 +56,43 @@ def run_overnight(
     now: Callable[[], datetime],
     top_n: int = OVERNIGHT_TOP_N,
     force: bool = False,
+    tickers: list[str] | None = None,
 ) -> Path:
     _require("overnight", now, force)
     today = et_date(now())
+    store = SnapshotStore(snapshot_root)
+    if _empty_watchlist(tickers):
+        meta = {
+            "fetched_at": now().isoformat(),
+            "job": "overnight",
+            "tickers": [],
+            "n_export_calls": 0,
+            "empty_universe": True,
+            "errors": [],
+            "rv_source": "quote_20d",
+        }
+        return store.write_overnight(today, universe=pd.DataFrame(), rv={}, meta=meta)
     print(f"Overnight job {today.isoformat()}: 1 screener + {top_n} /export/quote (60s each)")
     raw = _retry_once(lambda: provider.fetch_screener(
-        filters, view=STAGE1_VIEW, columns=STAGE1_COLUMNS,
+        filters, view=STAGE1_VIEW, columns=STAGE1_COLUMNS, tickers=tickers,
     ))
     universe = _normalize_universe(raw)
-    tickers = stage1_top_tickers(universe, n=top_n)
+    hist_tickers = stage1_top_tickers(universe, n=top_n)
     fetch_hist = getattr(provider, "fetch_history", None)
     if fetch_hist is None:
         raise RuntimeError("provider has no fetch_history")
     rv: dict[str, float] = {}
     errors: list[str] = []
-    for t in tickers:
+    for t in hist_tickers:
         try:
             closes = _retry_once(lambda ticker=t: fetch_hist(ticker))
             rv[t] = realized_vol(closes)
         except Exception as exc:
             errors.append(f"{t}: {exc}")
-    store = SnapshotStore(snapshot_root)
     meta = {
         "fetched_at": now().isoformat(),
         "job": "overnight",
-        "tickers": tickers,
+        "tickers": hist_tickers,
         "n_export_calls": 1 + len(rv),
         "empty_universe": universe.empty,
         "errors": errors,
@@ -91,14 +109,24 @@ def run_premarket(
     now: Callable[[], datetime],
     top_n: int = RTH_CHAIN_N,
     force: bool = False,
+    tickers: list[str] | None = None,
 ) -> Path:
     _require("premarket", now, force)
     today = et_date(now())
+    store = SnapshotStore(snapshot_root)
+    if _empty_watchlist(tickers):
+        meta = {
+            "fetched_at": now().isoformat(),
+            "job": "premarket",
+            "empty_universe": True,
+            "errors": [],
+            "n_export_calls": 0,
+        }
+        return store.write_premarket(today, snapshot=pd.DataFrame(), meta=meta)
     print(f"Premarket job {today.isoformat()}: 1 Gap screener, no chains")
     raw = _retry_once(lambda: provider.fetch_screener(
-        filters, view=STAGE1_VIEW, columns=PREMARKET_COLUMNS,
+        filters, view=STAGE1_VIEW, columns=PREMARKET_COLUMNS, tickers=tickers,
     ))
-    store = SnapshotStore(snapshot_root)
     empty = raw.empty if hasattr(raw, "empty") else False
     meta = {
         "fetched_at": now().isoformat(),
@@ -127,16 +155,36 @@ def run_rth(
     now: Callable[[], datetime],
     top_n: int = RTH_CHAIN_N,
     force: bool = False,
+    tickers: list[str] | None = None,
+    all_watchlist: bool = False,
 ) -> Path:
     _require("rth", now, force)
     today = et_date(now())
     store = SnapshotStore(snapshot_root)
+    chain_mode = "all_watchlist" if all_watchlist else "top5"
+    job_name = "rth-full" if all_watchlist else "rth"
+    if _empty_watchlist(tickers):
+        meta = {
+            "fetched_at": now().isoformat(),
+            "job": job_name,
+            "rv_from": None,
+            "rv_source": "none",
+            "empty_universe": True,
+            "errors": [],
+            "n_export_calls": 0,
+            "prelayer": "none",
+            "chain_mode": chain_mode,
+        }
+        brief = format_brief(pd.DataFrame(), pd.DataFrame(), meta)
+        return store.write_rth(
+            today, ranked=pd.DataFrame(), brief=brief, meta=meta, job=job_name,
+        )
     raw = store.load_premarket_snapshot(today)
     n_exports = 0
     if raw is None:
         print(f"RTH job {today.isoformat()}: missing prelayer, 1 Gap screener then options JSON")
         raw = _retry_once(lambda: provider.fetch_screener(
-            filters, view=STAGE1_VIEW, columns=PREMARKET_COLUMNS,
+            filters, view=STAGE1_VIEW, columns=PREMARKET_COLUMNS, tickers=tickers,
         ))
         n_exports = 1
     else:
@@ -149,17 +197,27 @@ def run_rth(
         screener_df=raw,
         pull_history=False,
         rv_override=rv or None,
+        tickers=tickers,
+        all_watchlist=all_watchlist,
     )
     empty = raw.empty if hasattr(raw, "empty") else False
+    chain_mode = "all_watchlist" if all_watchlist else "top5"
     meta = {
         "fetched_at": now().isoformat(),
-        "job": "rth",
+        "job": "rth-full" if all_watchlist else "rth",
         "rv_from": rv_date.isoformat() if rv_date else None,
         "rv_source": _rv_source(ranked, rv),
         "empty_universe": bool(empty),
         "errors": [],
         "n_export_calls": n_exports,
         "prelayer": "snapshot" if n_exports == 0 else "screener_fallback",
+        "chain_mode": chain_mode,
     }
     brief = format_brief(ranked, raw, meta)
-    return store.write_rth(today, ranked=ranked, brief=brief, meta=meta)
+    return store.write_rth(
+        today,
+        ranked=ranked,
+        brief=brief,
+        meta=meta,
+        job="rth-full" if all_watchlist else "rth",
+    )

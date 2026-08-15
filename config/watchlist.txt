@@ -1,0 +1,22 @@
+# Wheel-eligible universe. One ticker per line. Edit this file to change the desk.
+# Discovery ranking still runs inside this list. Duplicate / blank / # comments ignored.
+SPY
+SNPS
+GOOG
+NLR
+IREN
+MSFT
+HLIO
+ONTO
+Q
+APD
+AVGO
+NBIS
+MMM
+NVDA
+GLD
+MCD
+DELL
+AAPL
+SPCX
+AMZN

@@ -2,7 +2,7 @@
 
 URL shapes (token never hardcoded, never logged):
 
-  screener      /export/screener?v=...&f=...&c=...
+  screener      /export/screener?v=...&f=...&t=...&c=...
   quote history /export/quote?t={ticker}                 (date,lastClose)
   options CSV   /export/options?t=...&ty=oc&e=YYYY-MM-DD (often empty Bid/IV)
   options JSON  /stock?t=...&ty=oc&e=YYYY-MM-DD          (#route-init-data)
@@ -146,11 +146,15 @@ class FinvizProvider(ChainProvider):
         *,
         view: str = "111",
         columns: Optional[str] = None,
+        tickers: Optional[list[str]] = None,
     ) -> pd.DataFrame:
         extra = {"v": view, "f": filters}
         if columns:
             extra["c"] = columns
-        cache_key = f"{view}_{filters}_{columns or 'default'}"
+        t_param = ",".join(tickers) if tickers else ""
+        if t_param:
+            extra["t"] = t_param
+        cache_key = f"{view}_{filters}_{columns or 'default'}_{t_param or 'all'}"
         body = self._load_or_fetch(
             "screener",
             cache_key.replace(",", "_"),
@@ -254,12 +258,20 @@ class FinvizProvider(ChainProvider):
         q = urlencode({"t": ticker, "ty": "oc", "e": expiry.isoformat(), "auth": self._token_or_raise()})
         return f"{_OPTIONS_BASE}?{q}"
 
-    def _screener_url(self, filters: str, view: str, columns: Optional[str] = None) -> str:
+    def _screener_url(
+        self,
+        filters: str,
+        view: str,
+        columns: Optional[str] = None,
+        tickers: Optional[str] = None,
+    ) -> str:
         q = {"v": view, "auth": self._token_or_raise()}
         if filters:
             q["f"] = filters
         if columns:
             q["c"] = columns
+        if tickers:
+            q["t"] = tickers
         return f"{_SCREENER_BASE}?{urlencode(q)}"
 
     def _cache_path(self, kind: str, key: str, expiry: Optional[date]) -> Path:
@@ -312,7 +324,9 @@ class FinvizProvider(ChainProvider):
             exp = date.fromisoformat(extra["e"]) if extra.get("e") else None
             url = self._stock_options_url(extra["t"], exp)
         else:
-            url = self._screener_url(extra.get("f") or "", extra["v"], extra.get("c"))
+            url = self._screener_url(
+                extra.get("f") or "", extra["v"], extra.get("c"), extra.get("t"),
+            )
         try:
             body = self._fetcher(url)
         except Exception as exc:

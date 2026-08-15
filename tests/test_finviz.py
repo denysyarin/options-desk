@@ -252,6 +252,21 @@ def test_screener_custom_columns_go_on_the_url(tmp_path):
     assert "auth=test-token" in url
 
 
+def test_screener_tickers_go_on_url_as_t(tmp_path):
+    p = _provider(tmp_path, body=SCREENER_CSV)
+    p.fetch_screener(filters="sh_opt_option", tickers=["SPY", "MSFT"])
+    url = p._calls[0]  # type: ignore[attr-defined]
+    assert "t=SPY%2CMSFT" in url or "t=SPY,MSFT" in url
+    assert "f=sh_opt_option" in url
+
+
+def test_screener_cache_key_includes_tickers(tmp_path):
+    p = _provider(tmp_path, body=SCREENER_CSV)
+    p.fetch_screener(filters="sh_opt_option", tickers=["AAPL"])
+    p.fetch_screener(filters="sh_opt_option", tickers=["MSFT"])
+    assert len(p._calls) == 2  # type: ignore[attr-defined]
+
+
 QUOTE_CSV = (FIXTURES / "finviz_quote_sample.csv").read_text()
 OPTIONS_JSON = (FIXTURES / "finviz_options_init.json").read_text()
 

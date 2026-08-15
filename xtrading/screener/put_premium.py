@@ -1,7 +1,7 @@
 """Put-premium screener on top of ``OptionScreener``.
 
 Stage 1 is a single Finviz screener export, then /export/quote history
-for the top 3 names (real 20-day RV). Stage 2 is stock-page options JSON
+for the top 5 names (real 20-day RV). Stage 2 is stock-page options JSON
 for listed expiries in 2–9 DTE (weeklies included). CSV /export/options
 is the fallback when the provider has no JSON method.
 
@@ -31,7 +31,7 @@ ASSUMPTIONS = {
     "contract_multiplier": 100,
     "min_dte": 2,
     "max_dte": 9,
-    "top_n": 3,
+    "top_n": 5,
     "min_abs_delta": 0.10,
     "max_abs_delta": 0.25,
     "min_open_interest": 500,
@@ -313,6 +313,8 @@ class PutPremiumScreener:
         screener_df: Optional[pd.DataFrame] = None,
         pull_history: bool = True,
         rv_override: Optional[dict[str, float]] = None,
+        tickers: Optional[list[str]] = None,
+        all_watchlist: bool = False,
     ) -> pd.DataFrame:
         today = self._now().astimezone(ET).date()
         expiries = expiries_in_window(
@@ -331,12 +333,15 @@ class PutPremiumScreener:
             print("ETA covers /export/screener + /export/quote only. Options JSON is unthrottled.")
             print()
             raw = self.provider.fetch_screener(
-                filters, view=STAGE1_VIEW, columns=columns
+                filters, view=STAGE1_VIEW, columns=columns, tickers=tickers,
             )
         else:
             raw = screener_df
         universe = _normalize_universe(raw)
-        tickers = stage1_top_tickers(universe, n=top_n)
+        if all_watchlist:
+            picked = [str(t) for t in universe["Ticker"].tolist()]
+        else:
+            picked = stage1_top_tickers(universe, n=top_n)
         earnings = {
             str(r.Ticker): r.earnings_date
             for r in universe.itertuples(index=False)
@@ -355,7 +360,7 @@ class PutPremiumScreener:
         fetch_hist = getattr(self.provider, "fetch_history", None) if pull_history else None
         listed_fn = getattr(self.provider, "list_expiries", None)
         jobs: list[FetchJob] = []
-        for t in tickers:
+        for t in picked:
             if listed_fn is not None:
                 listed = listed_fn(t)
                 exps = [
@@ -370,7 +375,7 @@ class PutPremiumScreener:
             plan = self.provider.dry_run(jobs, kind="options_json") if jobs else FetchPlan(0, 0, timedelta(0), [])
         except TypeError:
             plan = self.provider.dry_run(jobs) if jobs else FetchPlan(0, 0, timedelta(0), [])
-        n_hist = 0 if fetch_hist is None else sum(1 for t in tickers if t not in history_map)
+        n_hist = 0 if fetch_hist is None else sum(1 for t in picked if t not in history_map)
         print(format_plan(FetchPlan(
             n_network_calls=plan.n_network_calls + n_hist,
             n_cache_hits=plan.n_cache_hits,
@@ -381,7 +386,7 @@ class PutPremiumScreener:
         print()
 
         if fetch_hist is not None:
-            for t in tickers:
+            for t in picked:
                 if t not in history_map:
                     history_map[t] = fetch_hist(t)
 
