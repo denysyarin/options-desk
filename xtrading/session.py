@@ -23,10 +23,11 @@ def job_for(now: datetime) -> JobName:
     local = _as_et(now)
     if local.weekday() >= 5:
         return "skip"
-    if local.hour == 9 and local.minute == 15:
+    hm = local.hour * 60 + local.minute
+    if 9 * 60 <= hm < 9 * 60 + 30:
         return "premarket"
-    if local.hour == 9 and local.minute == 30:
+    if 9 * 60 + 30 <= hm < 10 * 60:
         return "rth"
-    if local.hour == 16 and local.minute == 30:
+    if 16 * 60 + 30 <= hm < 17 * 60:
         return "overnight"
     return "skip"

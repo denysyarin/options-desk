@@ -1,4 +1,4 @@
-"""Scheduled overnight RV, 9:15 Gap prelayer, and 9:30 RTH put-premium jobs."""
+"""Scheduled overnight RV, 9:00 Gap prelayer, and 9:30 RTH put-premium jobs."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -26,7 +26,14 @@ RTH_CHAIN_N = 5
 
 
 class SessionSkip(RuntimeError):
-    """Wrong ET window and force was not set."""
+    """Wrong ET window, already wrote today's snapshot, and force was not set."""
+
+
+_DONE_FILE = {
+    "overnight": ("overnight", "rv.json"),
+    "premarket": ("premarket", "snapshot.csv"),
+    "rth": ("rth", "brief.md"),
+}
 
 
 def _require(job: str, now: Callable[[], datetime], force: bool) -> None:
@@ -35,6 +42,25 @@ def _require(job: str, now: Callable[[], datetime], force: bool) -> None:
         return
     if actual != job:
         raise SessionSkip(f"session is {actual!r}, need {job!r} (pass force=True to override)")
+
+
+def _refuse_if_wrote(
+    job: str,
+    snapshot_root: Path | str,
+    now: Callable[[], datetime],
+    force: bool,
+    *,
+    all_watchlist: bool = False,
+) -> None:
+    if force or all_watchlist:
+        return
+    spec = _DONE_FILE.get(job)
+    if spec is None:
+        return
+    sub, name = spec
+    path = SnapshotStore(snapshot_root).day_dir(et_date(now())) / sub / name
+    if path.exists():
+        raise SessionSkip(f"already wrote {path}")
 
 
 def _retry_once(fn):
@@ -59,6 +85,7 @@ def run_overnight(
     tickers: list[str] | None = None,
 ) -> Path:
     _require("overnight", now, force)
+    _refuse_if_wrote("overnight", snapshot_root, now, force)
     today = et_date(now())
     store = SnapshotStore(snapshot_root)
     if _empty_watchlist(tickers):
@@ -112,6 +139,7 @@ def run_premarket(
     tickers: list[str] | None = None,
 ) -> Path:
     _require("premarket", now, force)
+    _refuse_if_wrote("premarket", snapshot_root, now, force)
     today = et_date(now())
     store = SnapshotStore(snapshot_root)
     if _empty_watchlist(tickers):
@@ -159,6 +187,7 @@ def run_rth(
     all_watchlist: bool = False,
 ) -> Path:
     _require("rth", now, force)
+    _refuse_if_wrote("rth", snapshot_root, now, force, all_watchlist=all_watchlist)
     today = et_date(now())
     store = SnapshotStore(snapshot_root)
     chain_mode = "all_watchlist" if all_watchlist else "top5"
@@ -188,7 +217,7 @@ def run_rth(
         ))
         n_exports = 1
     else:
-        print(f"RTH job {today.isoformat()}: using 9:15 snapshot, options JSON (unthrottled)")
+        print(f"RTH job {today.isoformat()}: using 9:00 snapshot, options JSON (unthrottled)")
     rv_date, rv = store.load_latest_rv(before=today)
     ranked = PutPremiumScreener(provider, now=now).run(
         filters=filters,

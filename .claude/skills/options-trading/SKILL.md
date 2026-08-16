@@ -36,7 +36,7 @@ Universe is `config/watchlist.txt` (names you are willing to be assigned). Rank 
 2. If `rth/meta.json` `fetched_at` is not **today America/New_York**, the snapshot is stale. Say so. Do not treat it as live.
 3. Also check provenance: overnight/premarket tickers should intersect `config/watchlist.txt`, and RTH `meta.json` should include `chain_mode` (`top5` or `all_watchlist`). Date-fresh alone is not enough if the files were written by a pre-watchlist code path.
 4. Trust Python numbers. Never invent ranks, mids, or strikes. CSV sort is VRP, then annualized RoC, then spread — never raw premium alone.
-5. Gap / who-to-watch lives in `snapshots/*/premarket/snapshot.csv` (9:15 prelayer). Overnight RV lives in the previous session’s `snapshots/*/overnight/rv.json`. The lock-screen widget is that RV’s HOT-6 only (`snapshots/lock-widget.json`, two rectangular panes) — not a LOOK list. Tap opens `snapshots/lock-tape.md` in Safari (the table is already written; do not open Claude’s composer). If they then ask for the desk, open today’s `rth/brief.md` and write LOOK/IGNORE.
+5. Gap / who-to-watch lives in `snapshots/*/premarket/snapshot.csv` (9:00 prelayer). Overnight RV lives in the previous session’s `snapshots/*/overnight/rv.json`. The lock-screen widget is that RV’s HOT-6 only (`snapshots/lock-widget.json`, two rectangular panes) — not a LOOK list. Tap opens `snapshots/lock-tape.md` in Safari (the table is already written; do not open Claude’s composer). If they then ask for the desk, open today’s `rth/brief.md` and write LOOK/IGNORE.
 6. **Your job is one short triage report** (not a second desk, not an essay). Use `prompts/daily-desk-analyst.md`. Standing GitHub issue is the inbox.
 
 ### Triage output (≤ ~20 lines)

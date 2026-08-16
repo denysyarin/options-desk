@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       force:
-        description: Run even outside the 09:30 ET window
+        description: Run even outside the 09:30–09:59 ET window
         type: boolean
         default: false
   # Backup clock. Dual UTC hours cover EDT (13:30) and EST (14:30).

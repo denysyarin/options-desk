@@ -7,7 +7,8 @@ import pandas as pd
 from xtrading.screener.brief import format_brief
 
 ET = ZoneInfo("America/New_York")
-NOW = datetime(2026, 8, 14, 9, 15, tzinfo=ET)
+NOW = datetime(2026, 8, 14, 9, 30, tzinfo=ET)
+PREMARKET_AT = datetime(2026, 8, 14, 9, 0, tzinfo=ET)
 
 
 def test_brief_includes_vrp_gap_source_and_flags_not_token():
@@ -37,11 +38,23 @@ def test_brief_includes_vrp_gap_source_and_flags_not_token():
     assert "FLAG" in text or "unreliable" in text.lower()
     assert "not advice" in text.lower() or "not financial advice" in text.lower()
     assert "cash is open" in text.lower()
+    assert "9:00" in text
+    assert "9:15" not in text
     assert "auth=" not in text
     assert "basis" in text.lower()
     assert "94.55" in text
     assert "RoC" in text or "roc" in text.lower()
     assert "0.800" in text or "0.8" in text
+
+
+def test_premarket_brief_names_0900_prelayer():
+    text = format_brief(
+        pd.DataFrame(),
+        pd.DataFrame(),
+        meta={"fetched_at": PREMARKET_AT.isoformat(), "job": "premarket", "rv_source": "none"},
+    )
+    assert "9:00" in text
+    assert "9:15" not in text
 
 
 def test_empty_universe_brief():

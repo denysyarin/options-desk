@@ -2,6 +2,7 @@
 
 Date: 2026-08-14  
 Status: implemented in repo; human setup (secrets, Worker, standing issue) still required  
+Amended by: `docs/superpowers/specs/2026-08-16-clock-window-design.md` (premarket fire 09:00; session windows; already-wrote)  
 Repo: `denysyarin/options-desk` (public — briefs will be public unless the repo is later made private)
 
 ## Goal

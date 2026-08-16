@@ -4,14 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       force:
-        description: Run even outside the 09:15 ET window
+        description: Run even outside the 09:00–09:29 ET window
         type: boolean
         default: false
   # Backup clock. GitHub cron can run late; the Worker is the on-time one.
-  # Dual UTC hours cover EDT (13:15) and EST (14:15). Session gate no-ops the wrong one.
+  # Dual UTC hours cover EDT (13:00) and EST (14:00). Session gate no-ops the wrong one.
   schedule:
-    - cron: "15 13 * * 1-5"
-    - cron: "15 14 * * 1-5"
+    - cron: "0 13 * * 1-5"
+    - cron: "0 14 * * 1-5"
 
 concurrency:
   group: finviz-export

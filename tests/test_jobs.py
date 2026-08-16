@@ -1,4 +1,4 @@
-"""Overnight RV cache, 9:15 prelayer, and 9:30 RTH desk jobs."""
+"""Overnight RV cache, 9:00 prelayer, and 9:30 RTH desk jobs."""
 import json
 from datetime import datetime
 
@@ -169,6 +169,64 @@ def test_rth_all_watchlist_writes_rth_full_and_leaves_rth_alone(tmp_path):
 def test_all_watchlist_rejected_on_overnight():
     from xtrading.screener.__main__ import main
     assert main(["overnight", "--all-watchlist"]) == 2
+
+
+def test_premarket_already_wrote_skips_without_finviz(tmp_path):
+    p = DeskProvider()
+    run_premarket(p, filters="f", snapshot_root=tmp_path, now=lambda: PREMARKET_NOW)
+    p.calls.clear()
+    with pytest.raises(SessionSkip, match="already wrote"):
+        run_premarket(p, filters="f", snapshot_root=tmp_path, now=lambda: PREMARKET_NOW)
+    assert p.calls == []
+
+
+def test_overnight_already_wrote_skips_without_finviz(tmp_path):
+    p = DeskProvider()
+    run_overnight(p, filters="f", snapshot_root=tmp_path, now=lambda: OVERNIGHT_NOW, top_n=3)
+    p.calls.clear()
+    with pytest.raises(SessionSkip, match="already wrote"):
+        run_overnight(p, filters="f", snapshot_root=tmp_path, now=lambda: OVERNIGHT_NOW, top_n=3)
+    assert p.calls == []
+
+
+def test_rth_already_wrote_skips_without_finviz(tmp_path):
+    p = DeskProvider()
+    run_overnight(p, filters="f", snapshot_root=tmp_path, now=lambda: OVERNIGHT_NOW, top_n=3)
+    run_premarket(p, filters="f", snapshot_root=tmp_path, now=lambda: PREMARKET_NOW, top_n=3)
+    run_rth(p, filters="f", snapshot_root=tmp_path, now=lambda: RTH_NOW, top_n=3)
+    p.calls.clear()
+    with pytest.raises(SessionSkip, match="already wrote"):
+        run_rth(p, filters="f", snapshot_root=tmp_path, now=lambda: RTH_NOW, top_n=3)
+    assert p.calls == []
+
+
+def test_rth_partial_ranked_without_brief_runs_again(tmp_path):
+    p = DeskProvider()
+    day = tmp_path / "2026-08-14" / "rth"
+    day.mkdir(parents=True)
+    (day / "ranked.csv").write_text("ticker\nAAA\n")
+    run_rth(p, filters="f", snapshot_root=tmp_path, now=lambda: RTH_NOW, top_n=3, force=True)
+    assert (day / "brief.md").exists()
+    assert any(c.startswith("chain:") for c in p.calls)
+
+
+def test_force_reruns_even_when_done_file_exists(tmp_path):
+    p = DeskProvider()
+    run_premarket(p, filters="f", snapshot_root=tmp_path, now=lambda: PREMARKET_NOW)
+    p.calls.clear()
+    run_premarket(p, filters="f", snapshot_root=tmp_path, now=lambda: PREMARKET_NOW, force=True)
+    assert any(c.startswith("screener:") for c in p.calls)
+
+
+def test_rth_all_watchlist_ignores_existing_rth_brief(tmp_path):
+    p = DeskProvider()
+    run_overnight(p, filters="f", snapshot_root=tmp_path, now=lambda: OVERNIGHT_NOW, top_n=3)
+    run_premarket(p, filters="f", snapshot_root=tmp_path, now=lambda: PREMARKET_NOW, top_n=3)
+    run_rth(p, filters="f", snapshot_root=tmp_path, now=lambda: RTH_NOW, top_n=3)
+    p.calls.clear()
+    folder = run_rth(p, filters="f", snapshot_root=tmp_path, now=lambda: RTH_NOW, all_watchlist=True)
+    assert folder.name == "rth-full"
+    assert any(c.startswith("chain:") for c in p.calls)
 
 
 def test_overnight_empty_watchlist_is_empty_universe(tmp_path):

@@ -1,6 +1,6 @@
 /**
  * Alarm clock only. Does not call Finviz.
- * Dispatches GitHub Actions at 09:15 ET (premarket), 09:30 ET (RTH),
+ * Dispatches GitHub Actions at 09:00 ET (premarket), 09:30 ET (RTH),
  * and 16:30 ET (overnight) on weekdays.
  */
 export default {
@@ -23,7 +23,7 @@ export default {
     const minute = String(parts.minute).padStart(2, "0");
     const hm = `${hour}:${minute}`;
     let workflow = null;
-    if (hm === "09:15") workflow = "premarket.yml";
+    if (hm === "09:00") workflow = "premarket.yml";
     if (hm === "09:30") workflow = "rth.yml";
     if (hm === "16:30") workflow = "overnight.yml";
     if (!workflow) {

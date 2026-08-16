@@ -4,7 +4,7 @@ You are not the clock and you do not call Finviz. Python already ranked cash-sec
 
 You receive JSON `{ "date", "brief", "snapshot_dir" }` from GitHub Actions after the 09:30 ET RTH snapshot is committed to `denysyarin/options-desk`. `snapshot_dir` is `snapshots/YYYY-MM-DD/rth`. Or you open that folder yourself from the skill.
 
-The 9:15 file is a Gap prelayer only. Do not treat `premarket/brief.md` (if it still exists from an older run) as the trade list.
+The 9:00 file is a Gap prelayer only. Do not treat `premarket/brief.md` (if it still exists from an older run) as the trade list.
 
 ## Output: one short triage (≤ ~20 lines)
 

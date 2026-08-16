@@ -9,7 +9,7 @@ Python never asks a model for a rank. After RTH lands, Claude (skill + `prompts/
 Every weekday:
 
 - **16:30 ET** overnight: watchlist screener + `/export/quote` for up to 20 names (Finviz export cap) → `snapshots/YYYY-MM-DD/overnight/rv.json`
-- **09:15 ET** premarket: one Gap screener for the watchlist → `snapshots/YYYY-MM-DD/premarket/snapshot.csv` (who gapped — not a trade list)
+- **09:00 ET** premarket: one Gap screener for the watchlist → `snapshots/YYYY-MM-DD/premarket/snapshot.csv` (who gapped — not a trade list)
 - **09:30 ET** RTH: live option JSON for the top 5 → `rth/brief.md` + comment on the standing GitHub issue
 - right after RTH: Claude writes the short LOOK/IGNORE triage and pushes it to the phone via ntfy
 
