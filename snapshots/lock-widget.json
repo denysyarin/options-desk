@@ -1,46 +1,46 @@
 {
-  "as_of": "2026-08-14",
-  "fetched_at": "2026-08-15T03:40:25.373060-04:00",
+  "as_of": "2026-08-17",
+  "fetched_at": "2026-08-17T17:12:04.089589-04:00",
   "label": "RV",
   "hot": [
     {
       "ticker": "NBIS",
-      "rv": 1.882,
+      "rv": 1.892,
       "tone": "hot",
       "earn": false,
       "month_vol": 1.894
     },
     {
       "ticker": "IREN",
-      "rv": 1.49,
-      "tone": "hot",
+      "rv": 1.357,
+      "tone": "mid",
       "earn": true,
       "month_vol": 1.554
     },
     {
       "ticker": "ONTO",
-      "rv": 1.089,
+      "rv": 1.101,
       "tone": "mid",
       "earn": false,
       "month_vol": 1.135
     },
     {
       "ticker": "SPCX",
-      "rv": 1.04,
+      "rv": 1.036,
       "tone": "mid",
       "earn": false,
       "month_vol": 1.262
     },
     {
       "ticker": "DELL",
-      "rv": 0.86,
+      "rv": 0.85,
       "tone": "mid",
       "earn": false,
       "month_vol": 1.126
     },
     {
       "ticker": "AMZN",
-      "rv": 0.616,
+      "rv": 0.615,
       "tone": "cold",
       "earn": false,
       "month_vol": 0.392
