@@ -19,3 +19,19 @@ DELL
 AAPL
 SPCX
 AMZN
+# AI / tech picks-and-shovels (infra, not the models)
+TSM
+ASML
+AMAT
+LRCX
+KLAC
+MU
+AMD
+SMCI
+VRT
+CEG
+ANET
+MRVL
+ARM
+HPE
+GEV
