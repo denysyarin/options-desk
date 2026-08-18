@@ -1,8 +1,8 @@
 {
-  "fetched_at": "2026-08-18T12:59:46.826308-04:00",
+  "fetched_at": "2026-08-18T13:08:48.214918-04:00",
   "job": "rth",
   "rv_from": "2026-08-17",
-  "rv_source": "quote_20d",
+  "rv_source": "mixed",
   "empty_universe": false,
   "errors": [],
   "n_export_calls": 1,
