@@ -1,0 +1,2 @@
+ticker,strike,dte,bid,ask,mid,delta,iv,rv_20d,volume,open_interest,quote_age,last_trade,earnings_date,spot,iv_unreliable,spread,spread_pct,vrp,annualized_roc,capital,breakeven,basis,quote_time
+SPCX,130.0,2,0.31,0.34,0.325,-0.11506572489326583,0.7913491,1.0386632891252825,104,17382,0 days 00:17:56.185932,2026-08-19 09:30:52-04:00,2026-08-04,139.19,False,0.030000000000000027,0.09230769230769238,-0.24731418912528247,0.45625,13000.0,129.675,129.675,2026-08-19 09:30:52-04:00
