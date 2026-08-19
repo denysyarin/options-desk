@@ -1,39 +1,32 @@
 {
-  "as_of": "2026-08-18",
-  "fetched_at": "2026-08-18T17:08:26.938263-04:00",
+  "as_of": "2026-08-19",
+  "fetched_at": "2026-08-19T17:13:16.439774-04:00",
   "label": "RV",
   "hot": [
     {
       "ticker": "NBIS",
-      "rv": 1.832,
+      "rv": 1.874,
       "tone": "hot",
       "earn": false,
-      "month_vol": 1.84
+      "month_vol": 1.868
     },
     {
       "ticker": "IREN",
-      "rv": 1.378,
+      "rv": 1.379,
       "tone": "mid",
       "earn": true,
-      "month_vol": 1.537
+      "month_vol": 1.505
     },
     {
       "ticker": "ONTO",
-      "rv": 1.154,
+      "rv": 1.169,
       "tone": "mid",
       "earn": false,
-      "month_vol": 1.091
-    },
-    {
-      "ticker": "SMCI",
-      "rv": 1.135,
-      "tone": "mid",
-      "earn": false,
-      "month_vol": 1.126
+      "month_vol": 1.113
     },
     {
       "ticker": "SPCX",
-      "rv": 1.039,
+      "rv": 1.007,
       "tone": "mid",
       "earn": false,
       "month_vol": 1.267
@@ -43,7 +36,14 @@
       "rv": 1.004,
       "tone": "mid",
       "earn": false,
-      "month_vol": 1.132
+      "month_vol": 1.138
+    },
+    {
+      "ticker": "SMCI",
+      "rv": 0.968,
+      "tone": "mid",
+      "earn": false,
+      "month_vol": 1.141
     }
   ],
   "click_url": "https://github.com/denysyarin/options-desk/blob/main/snapshots/lock-tape.md"
