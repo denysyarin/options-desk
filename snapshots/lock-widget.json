@@ -1,6 +1,6 @@
 {
-  "as_of": "2026-08-19",
-  "fetched_at": "2026-08-19T17:13:16.439774-04:00",
+  "as_of": "2026-08-20",
+  "fetched_at": "2026-08-20T17:15:47.402650-04:00",
   "label": "RV",
   "hot": [
     {
@@ -8,42 +8,42 @@
       "rv": 1.874,
       "tone": "hot",
       "earn": false,
-      "month_vol": 1.868
+      "month_vol": 1.848
     },
     {
       "ticker": "IREN",
-      "rv": 1.379,
+      "rv": 1.378,
       "tone": "mid",
       "earn": true,
-      "month_vol": 1.505
+      "month_vol": 1.538
     },
     {
       "ticker": "ONTO",
-      "rv": 1.169,
-      "tone": "mid",
-      "earn": false,
-      "month_vol": 1.113
-    },
-    {
-      "ticker": "SPCX",
-      "rv": 1.007,
-      "tone": "mid",
-      "earn": false,
-      "month_vol": 1.267
-    },
-    {
-      "ticker": "MU",
-      "rv": 1.004,
-      "tone": "mid",
-      "earn": false,
-      "month_vol": 1.138
-    },
-    {
-      "ticker": "SMCI",
-      "rv": 0.968,
+      "rv": 1.168,
       "tone": "mid",
       "earn": false,
       "month_vol": 1.141
+    },
+    {
+      "ticker": "SPCX",
+      "rv": 1.021,
+      "tone": "mid",
+      "earn": false,
+      "month_vol": 1.252
+    },
+    {
+      "ticker": "MU",
+      "rv": 1.007,
+      "tone": "mid",
+      "earn": false,
+      "month_vol": 1.121
+    },
+    {
+      "ticker": "MRVL",
+      "rv": 0.982,
+      "tone": "mid",
+      "earn": true,
+      "month_vol": 1.108
     }
   ],
   "click_url": "https://github.com/denysyarin/options-desk/blob/main/snapshots/lock-tape.md"
