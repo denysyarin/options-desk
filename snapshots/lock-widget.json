@@ -1,49 +1,49 @@
 {
-  "as_of": "2026-08-20",
-  "fetched_at": "2026-08-20T17:15:47.402650-04:00",
+  "as_of": "2026-08-21",
+  "fetched_at": "2026-08-21T17:08:41.422465-04:00",
   "label": "RV",
   "hot": [
     {
       "ticker": "NBIS",
-      "rv": 1.874,
+      "rv": 1.774,
       "tone": "hot",
       "earn": false,
-      "month_vol": 1.848
+      "month_vol": 1.818
     },
     {
       "ticker": "IREN",
-      "rv": 1.378,
+      "rv": 1.336,
       "tone": "mid",
       "earn": true,
-      "month_vol": 1.538
+      "month_vol": 1.518
     },
     {
       "ticker": "ONTO",
-      "rv": 1.168,
+      "rv": 1.143,
       "tone": "mid",
       "earn": false,
-      "month_vol": 1.141
+      "month_vol": 1.151
     },
     {
       "ticker": "SPCX",
-      "rv": 1.021,
+      "rv": 1.014,
       "tone": "mid",
       "earn": false,
-      "month_vol": 1.252
+      "month_vol": 1.233
     },
     {
       "ticker": "MU",
-      "rv": 1.007,
+      "rv": 0.972,
       "tone": "mid",
       "earn": false,
-      "month_vol": 1.121
+      "month_vol": 1.122
     },
     {
       "ticker": "MRVL",
-      "rv": 0.982,
+      "rv": 0.964,
       "tone": "mid",
       "earn": true,
-      "month_vol": 1.108
+      "month_vol": 1.11
     }
   ],
   "click_url": "https://github.com/denysyarin/options-desk/blob/main/snapshots/lock-tape.md"

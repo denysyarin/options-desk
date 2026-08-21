@@ -1,0 +1,30 @@
+{
+  "fetched_at": "2026-08-21T17:08:41.422465-04:00",
+  "job": "overnight",
+  "tickers": [
+    "NBIS",
+    "IREN",
+    "SPCX",
+    "ARM",
+    "ONTO",
+    "MU",
+    "SMCI",
+    "MRVL",
+    "DELL",
+    "VRT",
+    "LRCX",
+    "HPE",
+    "AMD",
+    "AMAT",
+    "KLAC",
+    "ANET",
+    "Q",
+    "GEV",
+    "CEG",
+    "AVGO"
+  ],
+  "n_export_calls": 21,
+  "empty_universe": false,
+  "errors": [],
+  "rv_source": "quote_20d"
+}
